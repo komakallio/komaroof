@@ -33,7 +33,7 @@
 #include "Version.h"
 
 #define BOARD_NAME "KOMAROOF"
-#define ONE_WIRE_BUS 2
+#define ONE_WIRE_BUS 44
 #define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
 #define FULL_SPEED 400
 #define RAMP_LENGTH 20      // two seconds
@@ -124,14 +124,11 @@ void motorTick() {
 void temperatureTick() {
     // called @ 1hz
 
-    // alternate between sending requests and reading temperature
-    if (!temperatureRequested) {
-        dallasTemperature.requestTemperaturesByIndex(0);
-        temperatureRequested = true;
-    } else {
+    if (temperatureRequested) {
         temperature = dallasTemperature.getTempCByIndex(0);
-        temperatureRequested = false;
     }
+    dallasTemperature.requestTemperaturesByIndex(0);
+    temperatureRequested = true;
 }
 
 void test(const String&) {
@@ -183,7 +180,8 @@ void status(const String&) {
         message += ",TEMP1=";
         message += (int)(temperature);
         message += ".";
-        message += (int)(roundf(temperature*10)) % 10;
+        message += (int)(temperature*10) % 10;
+        message += (int)(roundf(temperature*100)) % 10;
     }
     serial.print(message);
 }
