@@ -11,7 +11,10 @@ The sketch supports a 1-wire temperature sensor connected
 The configurable parameters are on the top of `KomaRoof.ino`.
 
 `BOARD_NAME` - Identifier for the board, returned as a response to the TEST command.  
-`ONE_WIRE_BUS` - Pin number for the temperature sensor bus  
+`PIN_ONE_WIRE_BUS` - Pin number for the temperature sensor bus  
+`PIN_BUTTON_EMERGENCYSTOP` - Pin number for the emergency stop button. This must be an interrupt-capable pin.  
+`PIN_BUTTON_OPEN` - Pin number for the 'Open' button  
+`PIN_BUTTON_CLOSE` - Pin number for the 'Close' button  
 `MOTOR_POLARITY` - Change 1 to -1 to invert the motor movement direction.  
 `FULL_SPEED` - Maximum motor speed from 0 to 400  
 `RAMP_LENGTH` - The duration during which the motor ramps up to FULL_SPEED. In motor ticks (1/10th second).  

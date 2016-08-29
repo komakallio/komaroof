@@ -33,15 +33,20 @@
 #include "Version.h"
 
 #define BOARD_NAME "KOMAROOF"
-#define ONE_WIRE_BUS 44
+#define PIN_ONE_WIRE_BUS 44
+#define PIN_BUTTON_CLOSE 42
+#define PIN_BUTTON_OPEN 40
+#define PIN_BUTTON_EMERGENCYSTOP 3
 #define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
 #define FULL_SPEED 400
 #define RAMP_LENGTH 20      // two seconds
 
 void motorTick();
 void temperatureTick();
+void buttonTick();
+void emergencyStop();
 
-static OneWire oneWire(ONE_WIRE_BUS);
+static OneWire oneWire(PIN_ONE_WIRE_BUS);
 static DallasTemperature dallasTemperature(&oneWire);
 static MessageHandler handler;
 static NMEASerial serial(&handler);
@@ -49,6 +54,7 @@ static DualVNH5019MotorShield motorShield;
 static PowerConsumptionLog powerConsumptionLog;
 static Task motorTask(100, TASK_FOREVER, &motorTick);
 static Task temperatureTask(1000, TASK_FOREVER, &temperatureTick);
+static Task buttonTask(100, TASK_FOREVER, &buttonTick);
 static Scheduler taskScheduler;
 static RoofState roofState = STOPPED;
 static Phase phase = IDLE;
@@ -56,8 +62,16 @@ static int countSincePhase;
 static int direction;
 static float temperature = DEVICE_DISCONNECTED_C;
 static bool temperatureRequested = false;
+static volatile bool emergencyStopPressed = false;
 
 void setup() {
+
+    pinMode(PIN_BUTTON_CLOSE, INPUT);
+    pinMode(PIN_BUTTON_OPEN, INPUT);
+    pinMode(PIN_BUTTON_EMERGENCYSTOP, INPUT);
+
+    attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_EMERGENCYSTOP), emergencyStop, CHANGE);
+
     Serial.begin(57600);
     handler.registerCommand("TEST", test);
     handler.registerCommand("STATUS", status);
@@ -67,6 +81,7 @@ void setup() {
 
     taskScheduler.init();
     taskScheduler.addTask(motorTask);
+    taskScheduler.addTask(buttonTask);
 
     dallasTemperature.begin();
     if (dallasTemperature.getDeviceCount() > 0) {
@@ -87,6 +102,10 @@ void serialEvent() {
     serial.onSerialEvent();
 }
 
+void emergencyStop() {
+    emergencyStopPressed = (digitalRead(PIN_BUTTON_EMERGENCYSTOP) == LOW);
+}
+
 void motorTick() {
     // called @ 10hz rate
     countSincePhase++;
@@ -95,6 +114,14 @@ void motorTick() {
     if (countSincePhase % 10 == 0) {
         status("");
         powerConsumptionLog.report(serial);
+    }
+
+    if (emergencyStopPressed) {
+        motorShield.setM1Speed(0);
+        motorShield.setM2Speed(0);
+        phase = IDLE;
+        roofState = STOPPED;
+        return;
     }
 
     switch (phase) {
@@ -118,6 +145,15 @@ void motorTick() {
             }
             break;
         }
+    }
+}
+
+void buttonTick() {
+    if (digitalRead(PIN_BUTTON_OPEN) == LOW && phase == IDLE) {
+        open("");
+    }
+    if (digitalRead(PIN_BUTTON_CLOSE) == LOW && phase == IDLE) {
+        close("");
     }
 }
 
