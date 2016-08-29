@@ -21,32 +21,41 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
- #include <TaskScheduler.h>
+#include <DallasTemperature.h>
+#include <OneWire.h>
+#include <TaskScheduler.h>
 
- #include "DualVNH5019MotorShield.h"
- #include "NMEASerial.h"
- #include "MessageHandler.h"
- #include "PowerConsumptionLog.h"
- #include "Roof.h"
- #include "Version.h"
+#include "DualVNH5019MotorShield.h"
+#include "NMEASerial.h"
+#include "MessageHandler.h"
+#include "PowerConsumptionLog.h"
+#include "Roof.h"
+#include "Version.h"
 
 #define BOARD_NAME "KOMAROOF"
+#define ONE_WIRE_BUS 2
 #define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
 #define FULL_SPEED 400
 #define RAMP_LENGTH 20      // two seconds
 
 void motorTick();
+void temperatureTick();
 
+static OneWire oneWire(ONE_WIRE_BUS);
+static DallasTemperature dallasTemperature(&oneWire);
 static MessageHandler handler;
 static NMEASerial serial(&handler);
 static DualVNH5019MotorShield motorShield;
 static PowerConsumptionLog powerConsumptionLog;
 static Task motorTask(100, TASK_FOREVER, &motorTick);
+static Task temperatureTask(1000, TASK_FOREVER, &temperatureTick);
 static Scheduler taskScheduler;
 static RoofState roofState = STOPPED;
 static Phase phase = IDLE;
 static int countSincePhase;
 static int direction;
+static float temperature = DEVICE_DISCONNECTED_C;
+static bool temperatureRequested = false;
 
 void setup() {
     Serial.begin(57600);
@@ -58,6 +67,14 @@ void setup() {
 
     taskScheduler.init();
     taskScheduler.addTask(motorTask);
+
+    dallasTemperature.begin();
+    if (dallasTemperature.getDeviceCount() > 0) {
+        dallasTemperature.setWaitForConversion(false);
+        dallasTemperature.setResolution(12);
+        taskScheduler.addTask(temperatureTask);
+    }
+
     motorTask.enable();
     test("");
 }
@@ -101,6 +118,19 @@ void motorTick() {
             }
             break;
         }
+    }
+}
+
+void temperatureTick() {
+    // called @ 1hz
+
+    // alternate between sending requests and reading temperature
+    if (!temperatureRequested) {
+        dallasTemperature.requestTemperaturesByIndex(0);
+        temperatureRequested = true;
+    } else {
+        temperature = dallasTemperature.getTempCByIndex(0);
+        temperatureRequested = false;
     }
 }
 
@@ -149,5 +179,11 @@ void status(const String&) {
     message += roofStateNames[roofState];
     message += ",PHASE=";
     message += phaseNames[phase];
+    if (temperature != (float)DEVICE_DISCONNECTED_C) {
+        message += ",TEMP1=";
+        message += (int)(temperature);
+        message += ".";
+        message += (int)(roundf(temperature*10)) % 10;
+    }
     serial.print(message);
 }
