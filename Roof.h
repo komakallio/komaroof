@@ -29,6 +29,7 @@ enum RoofState {
     CLOSED,
     OPENING,
     CLOSING,
+    STOPPING,
     ERROR
 };
 

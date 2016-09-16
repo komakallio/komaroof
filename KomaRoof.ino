@@ -141,14 +141,18 @@ void motorTick() {
     }
 
     if (limitSwitchOpenActive) {
-        phase = RAMP_DOWN;
-        countSincePhase = 0;
+        if (phase != IDLE && roofState == OPENING) {
+            phase = RAMP_DOWN;
+            countSincePhase = 0;
+        }
         limitSwitchOpenActive = false;
     }
 
     if (limitSwitchCloseActive) {
-        phase = RAMP_DOWN;
-        countSincePhase = 0;
+        if (phase != IDLE && roofState == CLOSING) {
+            phase = RAMP_DOWN;
+            countSincePhase = 0;
+        }
         limitSwitchCloseActive = false;
     }
 
@@ -169,7 +173,12 @@ void motorTick() {
             motorShield.setM1Speed(power * direction);
             if (power == 0) {
                 phase = IDLE;
-                roofState = STOPPED;
+                if (roofState == STOPPING)
+                    roofState = STOPPED;
+                else if (roofState == OPENING)
+                    roofState = OPEN;
+                else if (roofState == CLOSING)
+                    roofState = CLOSED;
             }
             break;
         }
@@ -225,6 +234,7 @@ void close(const String&) {
 
 void stop(const String&) {
     if (phase != IDLE) {
+        roofState = STOPPING;
         phase = RAMP_DOWN;
         countSincePhase = 0;
     }
