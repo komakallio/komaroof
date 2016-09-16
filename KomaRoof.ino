@@ -157,9 +157,9 @@ void updateEncoder(int previous, int current) {
     previous = grayToBinary[previous & 0x3];
     current = grayToBinary[current & 0x3];
 
-    if (current > previous)
+    if (current == ((previous+1) & 0x3))
         encoderPosition++;
-    if (current < previous)
+    if (current == ((previous-1) & 0x3))
         encoderPosition--;
 }
 
