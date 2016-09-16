@@ -37,6 +37,8 @@
 #define PIN_BUTTON_CLOSE 42
 #define PIN_BUTTON_OPEN 40
 #define PIN_BUTTON_EMERGENCYSTOP 3
+#define PIN_LIMITSWITCH_OPEN 18
+#define PIN_LIMITSWITCH_CLOSE 19
 #define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
 #define FULL_SPEED 400
 #define RAMP_LENGTH 20      // two seconds
@@ -63,14 +65,20 @@ static int direction;
 static float temperature = DEVICE_DISCONNECTED_C;
 static bool temperatureRequested = false;
 static volatile bool emergencyStopPressed = false;
+static volatile bool limitSwitchOpenActive = false;
+static volatile bool limitSwitchCloseActive = false;
 
 void setup() {
 
     pinMode(PIN_BUTTON_CLOSE, INPUT);
     pinMode(PIN_BUTTON_OPEN, INPUT);
     pinMode(PIN_BUTTON_EMERGENCYSTOP, INPUT);
+    pinMode(PIN_LIMITSWITCH_OPEN, INPUT);
+    pinMode(PIN_LIMITSWITCH_CLOSE, INPUT);
 
-    attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_EMERGENCYSTOP), emergencyStop, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_EMERGENCYSTOP), emergencyStopISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_LIMITSWITCH_CLOSE), limitSwitchCloseISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_LIMITSWITCH_OPEN), limitSwitchOpenISR, CHANGE);
 
     Serial.begin(57600);
     handler.registerCommand("TEST", test);
@@ -102,8 +110,16 @@ void serialEvent() {
     serial.onSerialEvent();
 }
 
-void emergencyStop() {
+void emergencyStopISR() {
     emergencyStopPressed = (digitalRead(PIN_BUTTON_EMERGENCYSTOP) == LOW);
+}
+
+void limitSwitchOpenISR() {
+    limitSwitchOpenActive = (digitalRead(PIN_LIMITSWITCH_OPEN) == LOW);
+}
+
+void limitSwitchCloseISR() {
+    limitSwitchCloseActive = (digitalRead(PIN_LIMITSWITCH_CLOSE) == LOW);
 }
 
 void motorTick() {
@@ -122,6 +138,18 @@ void motorTick() {
         phase = IDLE;
         roofState = STOPPED;
         return;
+    }
+
+    if (limitSwitchOpenActive) {
+        phase = RAMP_DOWN;
+        countSincePhase = 0;
+        limitSwitchOpenActive = false;
+    }
+
+    if (limitSwitchCloseActive) {
+        phase = RAMP_DOWN;
+        countSincePhase = 0;
+        limitSwitchCloseActive = false;
     }
 
     switch (phase) {
