@@ -59,10 +59,10 @@ static MessageHandler handler;
 static NMEASerial serial(&handler);
 static DualVNH5019MotorShield motorShield;
 static PowerConsumptionLog powerConsumptionLog;
-static Task currentMeasurementTask(10, TASK_FOREVER, &currentMeasurementTick);
 static Task motorTask(100, TASK_FOREVER, &motorTick);
 static Task temperatureTask(1000, TASK_FOREVER, &temperatureTick);
 static Task buttonTask(100, TASK_FOREVER, &buttonTick);
+static Task currentMeasurementTask(10, TASK_FOREVER, &currentMeasurementTick);
 static Scheduler taskScheduler;
 static RoofState roofState = STOPPED;
 static Phase phase = IDLE;
@@ -104,15 +104,19 @@ void setup() {
     taskScheduler.init();
     taskScheduler.addTask(motorTask);
     taskScheduler.addTask(buttonTask);
+    taskScheduler.addTask(currentMeasurementTask);
 
     dallasTemperature.begin();
     if (dallasTemperature.getDeviceCount() > 0) {
         dallasTemperature.setWaitForConversion(false);
         dallasTemperature.setResolution(12);
         taskScheduler.addTask(temperatureTask);
+        temperatureTask.enable();
     }
 
     motorTask.enable();
+    buttonTask.enable();
+    currentMeasurementTask.enable();
     test("");
 }
 

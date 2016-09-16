@@ -35,7 +35,7 @@ Queries the current status of the roof.
 Example: `$STATUS*14`  
 Response: `$STATUS,ROOF=OPEN,PHASE=,TEMP1=11.22*74` and `$POWER,12818,12920,13056,13158,13260,13396,13532,13634,13770,13906*58`
 
-`ROOF` - Status of the roof. The valid states are `OPEN`, `CLOSED`, `OPENING`, `CLOSING` and `ERROR`.  
+`ROOF` - Status of the roof. The valid states are `OPEN`, `CLOSED`, `STOPPED`, `OPENING`, `CLOSING`, `STOPPING` and `ERROR`.  
 `PHASE` - State of the motor control loop. Valid states are `IDLE`, `RAMP_UP`, `MOVE_UNTIL_NEAR`, `RAMP_DOWN` and `CLOSE_TIGHTLY`.  
 `TEMP1` - Latest temperature measurement.
 

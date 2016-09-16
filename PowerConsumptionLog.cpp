@@ -28,22 +28,22 @@ PowerConsumptionLog::PowerConsumptionLog() :
     m_windowPos(0),
     m_overloadThreshold(5000) {
     memset(&m_data[0], 0, 16);
-    memset(&m_window[0], 0, 10);
+    memset(&m_window[0], 0, 16);
 }
 
-void PowerConsumptionLog::measure(int milliAmps) {
-    m_window[m_windowPos++ % 10] = milliAmps;
+void PowerConsumptionLog::measure(unsigned int milliAmps) {
+    m_window[m_windowPos++ & 0xF] = milliAmps;
 }
 
 void PowerConsumptionLog::appendCurrentMeasurement() {
-    int avg = 0;
-    for (int i = 0; i < 10; i++) {
-        avg += m_window[i];
+    unsigned int avg = 0;
+    for (int i = 1; i <= 10; i++) {
+        avg += m_window[(m_windowPos-i) & 0xF];
     }
     m_data[m_pos++ & 0xF] = avg/10;
 }
 
-void PowerConsumptionLog::setOverloadThreshold(int milliAmps) {
+void PowerConsumptionLog::setOverloadThreshold(unsigned int milliAmps) {
     m_overloadThreshold = milliAmps;
 }
 
