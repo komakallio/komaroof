@@ -39,8 +39,10 @@
 #define PIN_BUTTON_EMERGENCYSTOP 3
 #define PIN_LIMITSWITCH_OPEN 18
 #define PIN_LIMITSWITCH_CLOSE 19
+#define MOTOR_CURRENT_LIMIT_MILLIAMPS 2500
 #define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
 #define FULL_SPEED 400
+#define CLOSING_SPEED 50
 #define RAMP_LENGTH 20      // two seconds
 
 void motorTick();
@@ -87,6 +89,8 @@ void setup() {
     handler.registerCommand("CLOSE", close);
     handler.registerCommand("STOP", stop);
 
+    powerConsumptionLog.setOverloadThreshold(MOTOR_CURRENT_LIMIT_MILLIAMPS);
+
     taskScheduler.init();
     taskScheduler.addTask(motorTask);
     taskScheduler.addTask(buttonTask);
@@ -132,6 +136,17 @@ void motorTick() {
         powerConsumptionLog.report(serial);
     }
 
+    if (powerConsumptionLog.isOverload()) {
+        motorShield.setM1Speed(0);
+        if (roofState == CLOSING && phase == CLOSE_TIGHTLY) {
+            roofState = CLOSED;
+            phase = IDLE;
+        } else {
+            roofState = ERROR;
+            phase = IDLE;
+        }
+    }
+
     if (emergencyStopPressed) {
         motorShield.setM1Speed(0);
         motorShield.setM2Speed(0);
@@ -168,20 +183,24 @@ void motorTick() {
         }
         case RAMP_DOWN: {
             int power = FULL_SPEED - FULL_SPEED * countSincePhase / RAMP_LENGTH;
-            if (power < 0)
-                power = 0;
+            int minimumPower = (roofState == CLOSING ? CLOSING_SPEED : 0);
+            if (power < minimumPower)
+                power = minimumPower;
             motorShield.setM1Speed(power * direction);
-            if (power == 0) {
+            if (power == minimumPower) {
                 phase = IDLE;
                 if (roofState == STOPPING)
                     roofState = STOPPED;
                 else if (roofState == OPENING)
                     roofState = OPEN;
                 else if (roofState == CLOSING)
-                    roofState = CLOSED;
+                    phase = CLOSE_TIGHTLY;
             }
             break;
         }
+        case CLOSE_TIGHTLY:
+            // just coast ahead, until we trigger current limit when the roof hits the wall
+            break;
     }
 }
 
@@ -242,7 +261,7 @@ void stop(const String&) {
 }
 
 void status(const String&) {
-    static const char* roofStateNames[] = { "STOPPED", "OPEN", "CLOSED", "OPENING", "CLOSING", "ERROR" };
+    static const char* roofStateNames[] = { "STOPPED", "OPEN", "CLOSED", "OPENING", "CLOSING", "STOPPING", "ERROR" };
     static const char* phaseNames[] = { "IDLE", "RAMP_UP", "MOVE_UNTIL_NEAR", "RAMP_DOWN", "CLOSE_TIGHTLY" };
 
     String message = "STATUS,";
