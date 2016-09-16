@@ -39,6 +39,8 @@
 #define PIN_BUTTON_EMERGENCYSTOP 3
 #define PIN_LIMITSWITCH_OPEN 18
 #define PIN_LIMITSWITCH_CLOSE 19
+#define PIN_ENCODER_GATE_1 20
+#define PIN_ENCODER_GATE_2 21
 #define MOTOR_CURRENT_LIMIT_MILLIAMPS 2500
 #define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
 #define FULL_SPEED 400
@@ -69,6 +71,8 @@ static bool temperatureRequested = false;
 static volatile bool emergencyStopPressed = false;
 static volatile bool limitSwitchOpenActive = false;
 static volatile bool limitSwitchCloseActive = false;
+static volatile int encoderState = 0;
+static volatile int encoderPosition = 0;
 
 void setup() {
 
@@ -77,10 +81,14 @@ void setup() {
     pinMode(PIN_BUTTON_EMERGENCYSTOP, INPUT);
     pinMode(PIN_LIMITSWITCH_OPEN, INPUT);
     pinMode(PIN_LIMITSWITCH_CLOSE, INPUT);
+    pinMode(PIN_ENCODER_GATE_1, INPUT);
+    pinMode(PIN_ENCODER_GATE_2, INPUT);
 
     attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_EMERGENCYSTOP), emergencyStopISR, CHANGE);
     attachInterrupt(digitalPinToInterrupt(PIN_LIMITSWITCH_CLOSE), limitSwitchCloseISR, CHANGE);
     attachInterrupt(digitalPinToInterrupt(PIN_LIMITSWITCH_OPEN), limitSwitchOpenISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_GATE_1), encoderGate1ISR, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PIN_ENCODER_GATE_2), encoderGate2ISR, CHANGE);
 
     Serial.begin(57600);
     handler.registerCommand("TEST", test);
@@ -126,6 +134,29 @@ void limitSwitchCloseISR() {
     limitSwitchCloseActive = (digitalRead(PIN_LIMITSWITCH_CLOSE) == LOW);
 }
 
+void encoderGate1ISR() {
+    int previousEncoderState = encoderState;
+    encoderState = (encoderState & 0x01) | (digitalRead(PIN_ENCODER_GATE_1 == LOW) ? 2 : 0);
+    updateEncoder(previousEncoderState, encoderState);
+}
+
+void encoderGate2ISR() {
+    int previousEncoderState = encoderState;
+    encoderState = (encoderState & 0x2) | (digitalRead(PIN_ENCODER_GATE_2 == LOW) ? 1 : 0);
+    updateEncoder(previousEncoderState, encoderState);
+}
+
+void updateEncoder(int previous, int current) {
+    static int grayToBinary[4] = { 0, 1, 3, 2 };
+    previous = grayToBinary[previous & 0x3];
+    current = grayToBinary[current & 0x3];
+
+    if (current > previous)
+        encoderPosition++;
+    if (current < previous)
+        encoderPosition--;
+}
+
 void motorTick() {
     // called @ 10hz rate
     countSincePhase++;
@@ -141,6 +172,7 @@ void motorTick() {
         if (roofState == CLOSING && phase == CLOSE_TIGHTLY) {
             roofState = CLOSED;
             phase = IDLE;
+            encoderPosition = 0;
         } else {
             roofState = ERROR;
             phase = IDLE;
@@ -270,6 +302,8 @@ void status(const String&) {
     message += roofStateNames[roofState];
     message += ",PHASE=";
     message += phaseNames[phase];
+    message += ",ENCODER=";
+    message += encoderPosition;
     if (temperature != (float)DEVICE_DISCONNECTED_C) {
         message += ",TEMP1=";
         message += (int)(temperature);
