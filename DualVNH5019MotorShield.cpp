@@ -8,14 +8,16 @@ DualVNH5019MotorShield::DualVNH5019MotorShield()
   _INA1 = 2;
   _INB1 = 4;
   _EN1DIAG1 = 6;
-  _CS1 = A0; 
+  _CS1 = A0;
   _INA2 = 7;
   _INB2 = 8;
   _EN2DIAG2 = 12;
   _CS2 = A1;
+  _M1SPEED = 0;
+  _M2SPEED = 0;
 }
 
-DualVNH5019MotorShield::DualVNH5019MotorShield(unsigned char INA1, unsigned char INB1, unsigned char EN1DIAG1, unsigned char CS1, 
+DualVNH5019MotorShield::DualVNH5019MotorShield(unsigned char INA1, unsigned char INB1, unsigned char EN1DIAG1, unsigned char CS1,
                                                unsigned char INA2, unsigned char INB2, unsigned char EN2DIAG2, unsigned char CS2)
 {
   //Pin map
@@ -28,6 +30,8 @@ DualVNH5019MotorShield::DualVNH5019MotorShield(unsigned char INA1, unsigned char
   _INB2 = INB2;
   _EN2DIAG2 = EN2DIAG2;
   _CS2 = CS2;
+  _M1SPEED = 0;
+  _M2SPEED = 0;
 }
 
 // Public Methods //////////////////////////////////////////////////////////////
@@ -63,7 +67,7 @@ void DualVNH5019MotorShield::init()
 void DualVNH5019MotorShield::setM1Speed(int speed)
 {
   unsigned char reverse = 0;
-  
+
   if (speed < 0)
   {
     speed = -speed;  // Make speed a positive quantity
@@ -71,6 +75,7 @@ void DualVNH5019MotorShield::setM1Speed(int speed)
   }
   if (speed > 400)  // Max PWM dutycycle
     speed = 400;
+  _M1SPEED = speed;
   #if defined(__AVR_ATmega168__)|| defined(__AVR_ATmega328P__) || defined(__AVR_ATmega32U4__)
   OCR1A = speed;
   #else
@@ -97,19 +102,20 @@ void DualVNH5019MotorShield::setM1Speed(int speed)
 void DualVNH5019MotorShield::setM2Speed(int speed)
 {
   unsigned char reverse = 0;
-  
+
   if (speed < 0)
   {
     speed = -speed;  // make speed a positive quantity
     reverse = 1;  // preserve the direction
   }
-  if (speed > 400)  // Max 
+  if (speed > 400)  // Max
     speed = 400;
+  _M2SPEED = speed;
   #if defined(__AVR_ATmega168__)|| defined(__AVR_ATmega328P__) || defined(__AVR_ATmega32U4__)
   OCR1B = speed;
   #else
   analogWrite(_PWM2,speed * 51 / 80); // default to using analogWrite, mapping 400 to 255
-  #endif 
+  #endif
   if (speed == 0)
   {
     digitalWrite(_INA2,LOW);   // Make the motor coast no
@@ -132,6 +138,16 @@ void DualVNH5019MotorShield::setSpeeds(int m1Speed, int m2Speed)
 {
   setM1Speed(m1Speed);
   setM2Speed(m2Speed);
+}
+
+// Return speed for motor 1
+int DualVNH5019MotorShield::getM1Speed() {
+    return _M1SPEED;
+}
+
+// Return speed for motor 2
+int DualVNH5019MotorShield::getM2Speed() {
+    return _M2SPEED;
 }
 
 // Brake motor 1, brake is a number between 0 and 400
@@ -193,13 +209,13 @@ unsigned int DualVNH5019MotorShield::getM2CurrentMilliamps()
   return analogRead(_CS2) * 34;
 }
 
-// Return error status for motor 1 
+// Return error status for motor 1
 unsigned char DualVNH5019MotorShield::getM1Fault()
 {
   return !digitalRead(_EN1DIAG1);
 }
 
-// Return error status for motor 2 
+// Return error status for motor 2
 unsigned char DualVNH5019MotorShield::getM2Fault()
 {
   return !digitalRead(_EN2DIAG2);

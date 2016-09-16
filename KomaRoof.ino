@@ -255,7 +255,8 @@ void stop(const String&) {
     if (phase != IDLE) {
         roofState = STOPPING;
         phase = RAMP_DOWN;
-        countSincePhase = 0;
+        // start mid-ramp if we were not running at full speed
+        countSincePhase = RAMP_LENGTH - RAMP_LENGTH * motorShield.getM1Speed() / FULL_SPEED;
     }
     serial.print("STOP,OK");
 }
