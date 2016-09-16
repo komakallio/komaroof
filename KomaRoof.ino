@@ -47,6 +47,7 @@
 #define CLOSING_SPEED 50
 #define RAMP_LENGTH 20      // two seconds
 
+void currentMeasurementTick();
 void motorTick();
 void temperatureTick();
 void buttonTick();
@@ -58,6 +59,7 @@ static MessageHandler handler;
 static NMEASerial serial(&handler);
 static DualVNH5019MotorShield motorShield;
 static PowerConsumptionLog powerConsumptionLog;
+static Task currentMeasurementTask(10, TASK_FOREVER, &currentMeasurementTick);
 static Task motorTask(100, TASK_FOREVER, &motorTick);
 static Task temperatureTask(1000, TASK_FOREVER, &temperatureTick);
 static Task buttonTask(100, TASK_FOREVER, &buttonTick);
@@ -157,11 +159,15 @@ void updateEncoder(int previous, int current) {
         encoderPosition--;
 }
 
+void currentMeasurementTick() {
+    powerConsumptionLog.measure(motorShield.getM1CurrentMilliamps());
+}
+
 void motorTick() {
     // called @ 10hz rate
     countSincePhase++;
 
-    powerConsumptionLog.append(motorShield.getM1CurrentMilliamps());
+    powerConsumptionLog.appendCurrentMeasurement();
     if (countSincePhase % 10 == 0) {
         status("");
         powerConsumptionLog.report(serial);

@@ -30,12 +30,15 @@ class PowerConsumptionLog {
 public:
     PowerConsumptionLog();
 
-    void append(int milliAmps);
+    void measure(int milliAmps);
+    void appendCurrentMeasurement();
     void report(NMEASerial& serial);
     void setOverloadThreshold(int milliAmps);
     bool isOverload() const;
 
 private:
+    int m_window[10];
+    int m_windowPos;
     int m_overloadThreshold;
     int m_data[16];
     int m_pos;
