@@ -115,7 +115,7 @@ void setup() {
     }
 
     motorTask.enable();
-    buttonTask.enable();
+//    buttonTask.enable();
     currentMeasurementTask.enable();
     test("");
 }
@@ -142,13 +142,13 @@ void limitSwitchCloseISR() {
 
 void encoderGate1ISR() {
     int previousEncoderState = encoderState;
-    encoderState = (encoderState & 0x01) | (digitalRead(PIN_ENCODER_GATE_1 == LOW) ? 2 : 0);
+    encoderState = (encoderState & 0x01) | (digitalRead(PIN_ENCODER_GATE_1) == LOW ? 2 : 0);
     updateEncoder(previousEncoderState, encoderState);
 }
 
 void encoderGate2ISR() {
     int previousEncoderState = encoderState;
-    encoderState = (encoderState & 0x2) | (digitalRead(PIN_ENCODER_GATE_2 == LOW) ? 1 : 0);
+    encoderState = (encoderState & 0x2) | (digitalRead(PIN_ENCODER_GATE_2) == LOW ? 1 : 0);
     updateEncoder(previousEncoderState, encoderState);
 }
 
