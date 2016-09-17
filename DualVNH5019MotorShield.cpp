@@ -11,7 +11,7 @@ DualVNH5019MotorShield::DualVNH5019MotorShield()
   _CS1 = A0;
   _INA2 = 7;
   _INB2 = 8;
-  _EN2DIAG2 = 12;
+  _EN2DIAG2 = 5;
   _CS2 = A1;
   _M1SPEED = 0;
   _M2SPEED = 0;
@@ -62,6 +62,12 @@ void DualVNH5019MotorShield::init()
   TCCR1B = 0b00010001;
   ICR1 = 400;
   #endif
+  #if defined(__AVR_ATmega128__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+  // Mega board specific stuff here - assumes assigning timer3, using pins 3 &5
+  TCCR1A = 0b10100000; // Mega pin 5
+  TCCR1B = 0b00010001; // Mega pin 3
+  ICR1 = 400;
+  #endif
 }
 // Set speed for motor 1, speed is a number betwenn -400 and 400
 void DualVNH5019MotorShield::setM1Speed(int speed)
@@ -77,6 +83,9 @@ void DualVNH5019MotorShield::setM1Speed(int speed)
     speed = 400;
   _M1SPEED = speed;
   #if defined(__AVR_ATmega168__)|| defined(__AVR_ATmega328P__) || defined(__AVR_ATmega32U4__)
+  OCR1A = speed;
+  #elif defined(__AVR_ATmega128__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+  // Mega board specific stuff here - assumes assigning timer3, using pins 3 &5
   OCR1A = speed;
   #else
   analogWrite(_PWM1,speed * 51 / 80); // default to using analogWrite, mapping 400 to 255
@@ -112,6 +121,9 @@ void DualVNH5019MotorShield::setM2Speed(int speed)
     speed = 400;
   _M2SPEED = speed;
   #if defined(__AVR_ATmega168__)|| defined(__AVR_ATmega328P__) || defined(__AVR_ATmega32U4__)
+  OCR1B = speed;
+  #elif defined(__AVR_ATmega128__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+  // Mega board specific stuff here - assumes assigning timer3, using pins 3 &5
   OCR1B = speed;
   #else
   analogWrite(_PWM2,speed * 51 / 80); // default to using analogWrite, mapping 400 to 255
@@ -164,6 +176,9 @@ void DualVNH5019MotorShield::setM1Brake(int brake)
   digitalWrite(_INB1, LOW);
   #if defined(__AVR_ATmega168__)|| defined(__AVR_ATmega328P__) || defined(__AVR_ATmega32U4__)
   OCR1A = brake;
+  #elif defined(__AVR_ATmega128__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+  // Mega board specific stuff here - assumes assigning timer3, using pins 3 &5
+  OCR1A = brake;
   #else
   analogWrite(_PWM1,brake * 51 / 80); // default to using analogWrite, mapping 400 to 255
   #endif
@@ -182,6 +197,9 @@ void DualVNH5019MotorShield::setM2Brake(int brake)
   digitalWrite(_INA2, LOW);
   digitalWrite(_INB2, LOW);
   #if defined(__AVR_ATmega168__)|| defined(__AVR_ATmega328P__) || defined(__AVR_ATmega32U4__)
+  OCR1B = brake;
+  #elif defined(__AVR_ATmega128__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+  // Mega board specific stuff here - assumes assigning timer3, using pins 3 &5
   OCR1B = brake;
   #else
   analogWrite(_PWM2,brake * 51 / 80); // default to using analogWrite, mapping 400 to 255
