@@ -41,6 +41,9 @@
 #define PIN_LIMITSWITCH_CLOSE 19
 #define PIN_ENCODER_GATE_1 20
 #define PIN_ENCODER_GATE_2 21
+#define PIN_BATTERY_VOLTAGE A2
+#define REFERENCE_VOLTAGE 5.0
+#define BATTERY_RESISTOR_DIVISOR 1.0
 #define MOTOR_CURRENT_LIMIT_MILLIAMPS 2500
 #define MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS 1000
 #define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
@@ -51,6 +54,7 @@
 void currentMeasurementTick();
 void motorTick();
 void temperatureTick();
+void voltageTick();
 void buttonTick();
 void emergencyStop();
 
@@ -62,6 +66,7 @@ static DualVNH5019MotorShield motorShield;
 static PowerConsumptionLog powerConsumptionLog;
 static Task motorTask(100, TASK_FOREVER, &motorTick);
 static Task temperatureTask(1000, TASK_FOREVER, &temperatureTick);
+static Task voltageTask(1000, TASK_FOREVER, &voltageTick);
 static Task buttonTask(100, TASK_FOREVER, &buttonTick);
 static Task currentMeasurementTask(10, TASK_FOREVER, &currentMeasurementTick);
 static Scheduler taskScheduler;
@@ -71,6 +76,7 @@ static int countSincePhase;
 static int direction;
 static float temperature = DEVICE_DISCONNECTED_C;
 static bool temperatureRequested = false;
+static float batteryVoltage = 0.0f;
 static volatile bool emergencyStopPressed = false;
 static volatile bool limitSwitchOpenActive = false;
 static volatile bool limitSwitchCloseActive = false;
@@ -104,6 +110,7 @@ void setup() {
     taskScheduler.addTask(motorTask);
     taskScheduler.addTask(buttonTask);
     taskScheduler.addTask(currentMeasurementTask);
+    taskScheduler.addTask(voltageTask);
 
     motorShield.init();
 
@@ -118,6 +125,7 @@ void setup() {
     motorTask.enable();
 //    buttonTask.enable();
     currentMeasurementTask.enable();
+    voltageTask.enable();
     test("");
 }
 
@@ -273,6 +281,10 @@ void temperatureTick() {
     temperatureRequested = true;
 }
 
+void voltageTick() {
+    batteryVoltage = analogRead(PIN_BATTERY_VOLTAGE) * REFERENCE_VOLTAGE / 1024.0 * BATTERY_RESISTOR_DIVISOR;
+}
+
 void test(const String&) {
     serial.print(String(BOARD_NAME) + String(",VER=") + String(KOMAROOF_VERSION));
 }
@@ -326,6 +338,11 @@ void status(const String&) {
     message += phaseNames[phase];
     message += ",ENCODER=";
     message += encoderPosition;
+    message += ",BATTERYVOLTAGE=";
+    message += (int)(batteryVoltage);
+    message += ".";
+    message += (int)(batteryVoltage*10) % 10;
+    message += (int)(roundf(batteryVoltage*100)) % 10;
     if (temperature != (float)DEVICE_DISCONNECTED_C) {
         message += ",TEMP1=";
         message += (int)(temperature);
