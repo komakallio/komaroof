@@ -34,7 +34,7 @@ public:
     void appendCurrentMeasurement();
     void report(NMEASerial& serial);
     void setOverloadThreshold(unsigned int milliAmps);
-    bool isOverload() const;
+    bool isOverload(unsigned int threshold) const;
 
 private:
     unsigned int m_window[16];

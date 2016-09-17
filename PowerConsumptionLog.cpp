@@ -43,13 +43,9 @@ void PowerConsumptionLog::appendCurrentMeasurement() {
     m_data[m_pos++ & 0xF] = avg/10;
 }
 
-void PowerConsumptionLog::setOverloadThreshold(unsigned int milliAmps) {
-    m_overloadThreshold = milliAmps;
-}
-
-bool PowerConsumptionLog::isOverload() const {
+bool PowerConsumptionLog::isOverload(unsigned int threshold) const {
     for (int i = 1; i <= 5; i++) {
-        if (m_data[(m_pos-i) % 0xF] < m_overloadThreshold) {
+        if (m_data[(m_pos-i) % 0xF] < threshold) {
             return false;
         }
     }

@@ -42,6 +42,7 @@
 #define PIN_ENCODER_GATE_1 20
 #define PIN_ENCODER_GATE_2 21
 #define MOTOR_CURRENT_LIMIT_MILLIAMPS 2500
+#define MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS 1000
 #define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
 #define FULL_SPEED 400
 #define CLOSING_SPEED 50
@@ -99,12 +100,12 @@ void setup() {
     handler.registerCommand("CLOSE", close);
     handler.registerCommand("STOP", stop);
 
-    powerConsumptionLog.setOverloadThreshold(MOTOR_CURRENT_LIMIT_MILLIAMPS);
-
     taskScheduler.init();
     taskScheduler.addTask(motorTask);
     taskScheduler.addTask(buttonTask);
     taskScheduler.addTask(currentMeasurementTask);
+
+    motorShield.init();
 
     dallasTemperature.begin();
     if (dallasTemperature.getDeviceCount() > 0) {
@@ -142,13 +143,13 @@ void limitSwitchCloseISR() {
 
 void encoderGate1ISR() {
     int previousEncoderState = encoderState;
-    encoderState = (encoderState & 0x01) | (digitalRead(PIN_ENCODER_GATE_1) == LOW ? 2 : 0);
+    encoderState = (encoderState & 0x1) | (digitalRead(PIN_ENCODER_GATE_1) == LOW ? 0x2 : 0);
     updateEncoder(previousEncoderState, encoderState);
 }
 
 void encoderGate2ISR() {
     int previousEncoderState = encoderState;
-    encoderState = (encoderState & 0x2) | (digitalRead(PIN_ENCODER_GATE_2) == LOW ? 1 : 0);
+    encoderState = (encoderState & 0x2) | (digitalRead(PIN_ENCODER_GATE_2) == LOW ? 0x1 : 0);
     updateEncoder(previousEncoderState, encoderState);
 }
 
@@ -177,7 +178,8 @@ void motorTick() {
         powerConsumptionLog.report(serial);
     }
 
-    if (powerConsumptionLog.isOverload()) {
+    unsigned int currentThreshold = (phase == CLOSE_TIGHTLY ? MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS : MOTOR_CURRENT_LIMIT_MILLIAMPS);
+    if (powerConsumptionLog.isOverload(currentThreshold)) {
         motorShield.setM1Speed(0);
         if (roofState == CLOSING && phase == CLOSE_TIGHTLY) {
             roofState = CLOSED;
@@ -187,6 +189,12 @@ void motorTick() {
             roofState = ERROR;
             phase = IDLE;
         }
+    }
+
+    if (motorShield.getM1Fault()) {
+        motorShield.setM1Speed(0);
+        roofState = ERROR;
+        phase = IDLE;
     }
 
     if (emergencyStopPressed) {
@@ -299,6 +307,10 @@ void stop(const String&) {
         phase = RAMP_DOWN;
         // start mid-ramp if we were not running at full speed
         countSincePhase = RAMP_LENGTH - RAMP_LENGTH * motorShield.getM1Speed() / FULL_SPEED;
+    }
+    if (roofState == ERROR) {
+        roofState = STOPPED;
+        phase = IDLE;
     }
     serial.print("STOP,OK");
 }
