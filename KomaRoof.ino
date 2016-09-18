@@ -345,6 +345,8 @@ void status(const String&) {
     message += ".";
     message += (int)(batteryVoltage*10) % 10;
     message += (int)(roundf(batteryVoltage*100)) % 10;
+    message += ",SPEED=";
+    message += roofSpeed;
     if (temperature != (float)DEVICE_DISCONNECTED_C) {
         message += ",TEMP1=";
         message += (int)(temperature);
