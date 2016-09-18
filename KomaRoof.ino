@@ -72,6 +72,7 @@ static Task currentMeasurementTask(10, TASK_FOREVER, &currentMeasurementTick);
 static Scheduler taskScheduler;
 static RoofState roofState = STOPPED;
 static Phase phase = IDLE;
+static int roofSpeed = FULL_SPEED;
 static int countSincePhase;
 static int direction;
 static float temperature = DEVICE_DISCONNECTED_C;
@@ -105,6 +106,7 @@ void setup() {
     handler.registerCommand("OPEN", open);
     handler.registerCommand("CLOSE", close);
     handler.registerCommand("STOP", stop);
+    handler.registerCommand("SETSPEED", setspeed);
 
     taskScheduler.init();
     taskScheduler.addTask(motorTask);
@@ -231,16 +233,16 @@ void motorTick() {
 
     switch (phase) {
         case RAMP_UP: {
-            int power = FULL_SPEED * countSincePhase / RAMP_LENGTH;
-            if (power > FULL_SPEED)
-                power = FULL_SPEED;
+            int power = roofSpeed * countSincePhase / RAMP_LENGTH;
+            if (power > roofSpeed)
+                power = roofSpeed;
             motorShield.setM1Speed(power * direction);
-            if (power == FULL_SPEED)
+            if (power == roofSpeed)
                 phase = MOVE_UNTIL_NEAR;
             break;
         }
         case RAMP_DOWN: {
-            int power = FULL_SPEED - FULL_SPEED * countSincePhase / RAMP_LENGTH;
+            int power = roofSpeed - roofSpeed * countSincePhase / RAMP_LENGTH;
             int minimumPower = (roofState == CLOSING ? CLOSING_SPEED : 0);
             if (power < minimumPower)
                 power = minimumPower;
@@ -318,7 +320,7 @@ void stop(const String&) {
         roofState = STOPPING;
         phase = RAMP_DOWN;
         // start mid-ramp if we were not running at full speed
-        countSincePhase = RAMP_LENGTH - RAMP_LENGTH * motorShield.getM1Speed() / FULL_SPEED;
+        countSincePhase = RAMP_LENGTH - RAMP_LENGTH * motorShield.getM1Speed() / roofSpeed;
     }
     if (roofState == ERROR) {
         roofState = STOPPED;
@@ -351,4 +353,9 @@ void status(const String&) {
         message += (int)(roundf(temperature*100)) % 10;
     }
     serial.print(message);
+}
+
+void setspeed(const String& speedAsString) {
+    roofSpeed = atoi(speedAsString.c_str());
+    serial.print("SETSPEED,OK");
 }
