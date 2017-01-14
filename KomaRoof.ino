@@ -33,6 +33,7 @@
 #include "Version.h"
 
 #define BOARD_NAME "KOMAROOF"
+#define PIN_UNUSED 46
 #define PIN_ONE_WIRE_BUS 44
 #define PIN_BUTTON_CLOSE 42
 #define PIN_BUTTON_OPEN 40
@@ -42,8 +43,8 @@
 #define PIN_ENCODER_GATE_1 20
 #define PIN_ENCODER_GATE_2 21
 #define PIN_BATTERY_VOLTAGE A2
-#define REFERENCE_VOLTAGE 5.0
-#define BATTERY_RESISTOR_DIVISOR 1.0
+#define REFERENCE_VOLTAGE 4.987
+#define BATTERY_RESISTOR_DIVISOR 3.2473
 #define MOTOR_CURRENT_LIMIT_MILLIAMPS 2500
 #define MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS 1000
 #define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
@@ -84,8 +85,22 @@ static volatile bool limitSwitchCloseActive = false;
 static volatile int encoderState = 0;
 static volatile int encoderPosition = 0;
 
+static void emergencyStopISR();
+static void limitSwitchCloseISR();
+static void limitSwitchOpenISR();
+static void encoderGate1ISR();
+static void encoderGate2ISR();
+static void stop(const String&);
+static void open(const String&);
+static void close(const String&);
+static void setspeed(const String&);
+static void status(const String&);
+static void test(const String&);
+
+
 void setup() {
 
+    pinMode(PIN_UNUSED, INPUT);
     pinMode(PIN_BUTTON_CLOSE, INPUT);
     pinMode(PIN_BUTTON_OPEN, INPUT);
     pinMode(PIN_BUTTON_EMERGENCYSTOP, INPUT);
@@ -151,6 +166,17 @@ void limitSwitchCloseISR() {
     limitSwitchCloseActive = (digitalRead(PIN_LIMITSWITCH_CLOSE) == LOW);
 }
 
+void updateEncoder(int previous, int current) {
+    static int grayToBinary[4] = { 0, 1, 3, 2 };
+    previous = grayToBinary[previous & 0x3];
+    current = grayToBinary[current & 0x3];
+
+    if (current == ((previous+1) & 0x3))
+        encoderPosition++;
+    if (current == ((previous-1) & 0x3))
+        encoderPosition--;
+}
+
 void encoderGate1ISR() {
     int previousEncoderState = encoderState;
     encoderState = (encoderState & 0x1) | (digitalRead(PIN_ENCODER_GATE_1) == LOW ? 0x2 : 0);
@@ -161,17 +187,6 @@ void encoderGate2ISR() {
     int previousEncoderState = encoderState;
     encoderState = (encoderState & 0x2) | (digitalRead(PIN_ENCODER_GATE_2) == LOW ? 0x1 : 0);
     updateEncoder(previousEncoderState, encoderState);
-}
-
-void updateEncoder(int previous, int current) {
-    static int grayToBinary[4] = { 0, 1, 3, 2 };
-    previous = grayToBinary[previous & 0x3];
-    current = grayToBinary[current & 0x3];
-
-    if (current == ((previous+1) & 0x3))
-        encoderPosition++;
-    if (current == ((previous-1) & 0x3))
-        encoderPosition--;
 }
 
 void currentMeasurementTick() {
