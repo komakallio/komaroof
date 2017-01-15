@@ -33,10 +33,9 @@
 #include "Version.h"
 
 #define BOARD_NAME "KOMAROOF"
-#define PIN_UNUSED 46
-#define PIN_ONE_WIRE_BUS 44
-#define PIN_BUTTON_CLOSE 42
-#define PIN_BUTTON_OPEN 40
+#define PIN_ONE_WIRE_BUS 52
+#define PIN_BUTTON_CLOSE 50
+#define PIN_BUTTON_OPEN 48
 #define PIN_BUTTON_EMERGENCYSTOP 3
 #define PIN_LIMITSWITCH_OPEN 18
 #define PIN_LIMITSWITCH_CLOSE 19
@@ -100,7 +99,6 @@ static void test(const String&);
 
 void setup() {
 
-    pinMode(PIN_UNUSED, INPUT);
     pinMode(PIN_BUTTON_CLOSE, INPUT);
     pinMode(PIN_BUTTON_OPEN, INPUT);
     pinMode(PIN_BUTTON_EMERGENCYSTOP, INPUT);
@@ -366,8 +364,8 @@ void status(const String&) {
         message += ",TEMP1=";
         message += (int)(temperature);
         message += ".";
-        message += (int)(temperature*10) % 10;
-        message += (int)(roundf(temperature*100)) % 10;
+        message += (int)(abs(temperature)*10) % 10;
+        message += (int)(roundf(abs(temperature)*100)) % 10;
     }
     serial.print(message);
 }
