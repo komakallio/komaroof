@@ -46,10 +46,11 @@
 #define BATTERY_RESISTOR_DIVISOR 3.2473
 #define MOTOR_CURRENT_LIMIT_MILLIAMPS 2500
 #define MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS 1000
-#define MOTOR_POLARITY 1    // Change to -1 to invert movement direction
+#define MOTOR_POLARITY -1    // Change to -1 to invert movement direction
 #define FULL_SPEED 400
 #define CLOSING_SPEED 50
 #define RAMP_LENGTH 20      // two seconds
+#define ENCODER_MAX_POSITION 715  // stop opening at this encoder position
 
 void currentMeasurementTick();
 void motorTick();
@@ -234,6 +235,13 @@ void motorTick() {
             countSincePhase = 0;
         }
         limitSwitchOpenActive = false;
+    }
+
+    if (encoderPosition >= ENCODER_MAX_POSITION) {
+        if (phase != IDLE && roofState == OPENING) {
+            phase = RAMP_DOWN;
+            countSincePhase = 0;
+        }
     }
 
     if (limitSwitchCloseActive) {
