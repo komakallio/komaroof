@@ -44,7 +44,7 @@ void PowerConsumptionLog::appendCurrentMeasurement() {
 }
 
 bool PowerConsumptionLog::isOverload(unsigned int threshold) const {
-    for (int i = 1; i <= 5; i++) {
+    for (int i = 1; i <= 3; i++) {
         if (m_data[(m_pos-i) % 0xF] < threshold) {
             return false;
         }
