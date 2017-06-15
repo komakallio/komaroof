@@ -67,7 +67,7 @@ static volatile bool limitSwitchOpenActive = false;
 static volatile bool limitSwitchCloseActive = false;
 static volatile int encoderState = 0;
 static volatile int encoderPosition = 0;
-static volatile int moveStartTime = 0;
+static unsigned long moveStartTime = 0;
 
 static void emergencyStopISR();
 static void limitSwitchCloseISR();
@@ -130,7 +130,7 @@ void setup() {
     test("");
 }
 
-void logger(String msg, int timeMillis=0) {
+void logger(String msg, unsigned long timeMillis=0) {
     if (timeMillis == 0) {
         timeMillis = millis();
     }
@@ -193,7 +193,7 @@ void currentMeasurementTick() {
 }
 
 void timerTick() {
-    int t = millis();
+    unsigned long t = millis();
     if (t - moveStartTime > MAX_MOVE_DURATION) {
         motorShield.setM1Speed(0);
         motorShield.setM2Speed(0);
