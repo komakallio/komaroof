@@ -81,9 +81,9 @@ static void setspeed(const String&);
 static void status(const String&);
 static void test(const String&);
 
-
 void setup() {
 
+    pinMode(PIN_UNUSED, INPUT);
     pinMode(PIN_BUTTON_CLOSE, INPUT);
     pinMode(PIN_BUTTON_OPEN, INPUT);
     pinMode(PIN_BUTTON_EMERGENCYSTOP, INPUT);
@@ -124,7 +124,7 @@ void setup() {
     }
 
     motorTask.enable();
-//    buttonTask.enable();
+    buttonTask.enable();
     currentMeasurementTask.enable();
     voltageTask.enable();
     test("");
@@ -221,7 +221,7 @@ void motorTick() {
             phase = IDLE;
             encoderPosition = 0;
             logger(String("CLOSED,DURATION=") + (millis()-moveStartTime));
-        } else {
+        } else if (roofState != CLOSED && roofState != OPEN) {
             roofState = ERROR;
             phase = IDLE;
             logger("ERROR=OVERCURRENT");
@@ -247,7 +247,7 @@ void motorTick() {
     }
 
     if (limitSwitchOpenActive) {
-        if (phase != IDLE && roofState == OPENING) {
+        if ((phase == RAMP_UP || phase == MOVE_UNTIL_NEAR) && roofState == OPENING) {
             logger("LIMIT=SWITCH_OPENING");
             phase = RAMP_DOWN;
             countSincePhase = 0;
@@ -256,7 +256,7 @@ void motorTick() {
     }
 
     if (encoderPosition >= ENCODER_MAX_POSITION) {
-        if (phase != IDLE && roofState == OPENING) {
+        if ((phase == RAMP_UP || phase == MOVE_UNTIL_NEAR) && roofState == OPENING) {
             logger("LIMIT=ENCODER_OPENING");
             phase = RAMP_DOWN;
             countSincePhase = 0;
@@ -264,12 +264,19 @@ void motorTick() {
     }
 
     if (limitSwitchCloseActive) {
-        if (phase != IDLE && roofState == CLOSING) {
+        if ((phase == RAMP_UP || phase == MOVE_UNTIL_NEAR) && roofState == CLOSING) {
             logger("LIMIT=SWITCH_CLOSING");
             phase = RAMP_DOWN;
             countSincePhase = 0;
         }
         limitSwitchCloseActive = false;
+    }
+
+    if (encoderPosition <= ENCODER_MIN_POSITION) {
+        if ((phase == RAMP_UP || phase == MOVE_UNTIL_NEAR) && roofState == CLOSING) {
+            phase = RAMP_DOWN;
+            countSincePhase = 0;
+        }
     }
 
     switch (phase) {
@@ -406,8 +413,8 @@ void status(const String&) {
         message += ",TEMP1=";
         message += (int)(temperature);
         message += ".";
-        message += (int)(abs(temperature)*10) % 10;
-        message += (int)(roundf(abs(temperature)*100)) % 10;
+        message += (int)(temperature*10) % 10;
+        message += (int)(roundf(temperature*100)) % 10;
     }
     serial.print(message);
 }

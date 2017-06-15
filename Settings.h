@@ -25,6 +25,7 @@
 #define SETTINGS_H
 
 #define BOARD_NAME "KOMAROOF"
+#define PIN_UNUSED 46
 #define PIN_ONE_WIRE_BUS 52
 #define PIN_BUTTON_CLOSE 50
 #define PIN_BUTTON_OPEN 48
@@ -37,12 +38,13 @@
 #define REFERENCE_VOLTAGE 4.987
 #define BATTERY_RESISTOR_DIVISOR 3.2473
 #define MOTOR_CURRENT_LIMIT_MILLIAMPS 2500
-#define MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS 1000
+#define MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS 2500
 #define MOTOR_POLARITY -1    // Change to -1 to invert movement direction
-#define FULL_SPEED 400
-#define CLOSING_SPEED 50
+#define FULL_SPEED 300
+#define CLOSING_SPEED 100
 #define RAMP_LENGTH 20      // two seconds
 #define ENCODER_MAX_POSITION 715  // stop opening at this encoder position
+#define ENCODER_MIN_POSITION 15  // start closing tightly at this encoder position
 #define MAX_MOVE_DURATION 120*1000 // two minutes
 
 #endif
