@@ -220,7 +220,7 @@ void motorTick() {
             roofState = CLOSED;
             phase = IDLE;
             encoderPosition = 0;
-            logger(String("CLOSED,DURATION=") + (millis()-moveStartTime));
+            logger(String("STATE=CLOSED,DURATION=") + (millis()-moveStartTime));
         } else if (roofState != CLOSED && roofState != OPEN) {
             roofState = ERROR;
             phase = IDLE;
@@ -239,7 +239,7 @@ void motorTick() {
         motorShield.setM1Speed(0);
         motorShield.setM2Speed(0);
         if (phase != IDLE) {
-            logger("EMERGENCYSTOP");
+            logger("CMD=EMERGENCYSTOP");
         }
         phase = IDLE;
         roofState = STOPPED;
@@ -299,17 +299,17 @@ void motorTick() {
                 phase = IDLE;
                 if (roofState == STOPPING)
                 {
-                    logger("STOPPED");
+                    logger("STATE=STOPPED");
                     roofState = STOPPED;
                 }
                 else if (roofState == OPENING)
                 {
-                    logger(String("OPENED,DURATION=") + (millis()-moveStartTime));
+                    logger(String("STATE=OPENED,DURATION=") + (millis()-moveStartTime));
                     roofState = OPEN;
                 }
                 else if (roofState == CLOSING)
                 {
-                    logger("TIGHTENING");
+                    logger("STATE=TIGHTENING");
                     phase = CLOSE_TIGHTLY;
                 }
             }
