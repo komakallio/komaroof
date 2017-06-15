@@ -304,7 +304,7 @@ void motorTick() {
                 }
                 else if (roofState == OPENING)
                 {
-                    logger("OPENED");
+                    logger(String("OPENED,DURATION=") + (millis()-moveStartTime));
                     roofState = OPEN;
                 }
                 else if (roofState == CLOSING)
