@@ -30,33 +30,15 @@
 #include "MessageHandler.h"
 #include "PowerConsumptionLog.h"
 #include "Roof.h"
+#include "Settings.h"
 #include "Version.h"
-
-#define BOARD_NAME "KOMAROOF"
-#define PIN_ONE_WIRE_BUS 52
-#define PIN_BUTTON_CLOSE 50
-#define PIN_BUTTON_OPEN 48
-#define PIN_BUTTON_EMERGENCYSTOP 3
-#define PIN_LIMITSWITCH_OPEN 18
-#define PIN_LIMITSWITCH_CLOSE 19
-#define PIN_ENCODER_GATE_1 20
-#define PIN_ENCODER_GATE_2 21
-#define PIN_BATTERY_VOLTAGE A2
-#define REFERENCE_VOLTAGE 4.987
-#define BATTERY_RESISTOR_DIVISOR 3.2473
-#define MOTOR_CURRENT_LIMIT_MILLIAMPS 2500
-#define MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS 1000
-#define MOTOR_POLARITY -1    // Change to -1 to invert movement direction
-#define FULL_SPEED 400
-#define CLOSING_SPEED 50
-#define RAMP_LENGTH 20      // two seconds
-#define ENCODER_MAX_POSITION 715  // stop opening at this encoder position
 
 void currentMeasurementTick();
 void motorTick();
 void temperatureTick();
 void voltageTick();
 void buttonTick();
+void timerTick();
 void emergencyStop();
 
 static OneWire oneWire(PIN_ONE_WIRE_BUS);
@@ -70,6 +52,7 @@ static Task temperatureTask(1000, TASK_FOREVER, &temperatureTick);
 static Task voltageTask(1000, TASK_FOREVER, &voltageTick);
 static Task buttonTask(100, TASK_FOREVER, &buttonTick);
 static Task currentMeasurementTask(10, TASK_FOREVER, &currentMeasurementTick);
+static Task timerTask(100, TASK_FOREVER, &timerTick);
 static Scheduler taskScheduler;
 static RoofState roofState = STOPPED;
 static Phase phase = IDLE;
@@ -84,6 +67,7 @@ static volatile bool limitSwitchOpenActive = false;
 static volatile bool limitSwitchCloseActive = false;
 static volatile int encoderState = 0;
 static volatile int encoderPosition = 0;
+static volatile int moveStartTime = 0;
 
 static void emergencyStopISR();
 static void limitSwitchCloseISR();
@@ -127,6 +111,7 @@ void setup() {
     taskScheduler.addTask(buttonTask);
     taskScheduler.addTask(currentMeasurementTask);
     taskScheduler.addTask(voltageTask);
+    taskScheduler.addTask(timerTask);
 
     motorShield.init();
 
@@ -143,6 +128,21 @@ void setup() {
     currentMeasurementTask.enable();
     voltageTask.enable();
     test("");
+}
+
+void logger(String msg, int timeMillis=0) {
+    if (timeMillis == 0) {
+        timeMillis = millis();
+    }
+
+    String logMessage = "LOG,TIME=";
+    logMessage += timeMillis;
+    logMessage += ",ENCODER=";
+    logMessage += encoderPosition;
+    logMessage += ",";
+    logMessage += msg;
+
+    Serial.print(logMessage);
 }
 
 void loop() {
@@ -192,6 +192,17 @@ void currentMeasurementTick() {
     powerConsumptionLog.measure(motorShield.getM1CurrentMilliamps());
 }
 
+void timerTick() {
+    int t = millis();
+    if (t - moveStartTime > MAX_MOVE_DURATION) {
+        motorShield.setM1Speed(0);
+        motorShield.setM2Speed(0);
+        roofState = ERROR;
+        phase = IDLE;
+        logger("ERROR=DURATION");
+    }
+}
+
 void motorTick() {
     // called @ 10hz rate
     countSincePhase++;
@@ -209,9 +220,11 @@ void motorTick() {
             roofState = CLOSED;
             phase = IDLE;
             encoderPosition = 0;
+            logger(String("CLOSED,DURATION=") + (millis()-moveStartTime));
         } else {
             roofState = ERROR;
             phase = IDLE;
+            logger("ERROR=OVERCURRENT");
         }
     }
 
@@ -219,11 +232,15 @@ void motorTick() {
         motorShield.setM1Speed(0);
         roofState = ERROR;
         phase = IDLE;
+        logger("ERROR=MOTOR1FAULT");
     }
 
     if (emergencyStopPressed) {
         motorShield.setM1Speed(0);
         motorShield.setM2Speed(0);
+        if (phase != IDLE) {
+            logger("EMERGENCYSTOP");
+        }
         phase = IDLE;
         roofState = STOPPED;
         return;
@@ -231,6 +248,7 @@ void motorTick() {
 
     if (limitSwitchOpenActive) {
         if (phase != IDLE && roofState == OPENING) {
+            logger("LIMIT=SWITCH_OPENING");
             phase = RAMP_DOWN;
             countSincePhase = 0;
         }
@@ -239,6 +257,7 @@ void motorTick() {
 
     if (encoderPosition >= ENCODER_MAX_POSITION) {
         if (phase != IDLE && roofState == OPENING) {
+            logger("LIMIT=ENCODER_OPENING");
             phase = RAMP_DOWN;
             countSincePhase = 0;
         }
@@ -246,6 +265,7 @@ void motorTick() {
 
     if (limitSwitchCloseActive) {
         if (phase != IDLE && roofState == CLOSING) {
+            logger("LIMIT=SWITCH_CLOSING");
             phase = RAMP_DOWN;
             countSincePhase = 0;
         }
@@ -271,11 +291,20 @@ void motorTick() {
             if (power == minimumPower) {
                 phase = IDLE;
                 if (roofState == STOPPING)
+                {
+                    logger("STOPPED");
                     roofState = STOPPED;
+                }
                 else if (roofState == OPENING)
+                {
+                    logger("OPENED");
                     roofState = OPEN;
+                }
                 else if (roofState == CLOSING)
+                {
+                    logger("TIGHTENING");
                     phase = CLOSE_TIGHTLY;
+                }
             }
             break;
         }
@@ -318,6 +347,8 @@ void open(const String&) {
         phase = RAMP_UP;
         countSincePhase = 0;
         direction = MOTOR_POLARITY;
+        moveStartTime = millis();
+        logger("CMD=OPEN", moveStartTime);
         serial.print("OPEN,OK");
     } else {
         serial.print("OPEN,ERR");
@@ -330,6 +361,8 @@ void close(const String&) {
         phase = RAMP_UP;
         countSincePhase = 0;
         direction = -MOTOR_POLARITY;
+        moveStartTime = millis();
+        logger("CMD=CLOSE", moveStartTime);
         serial.print("CLOSE,OK");
     } else {
         serial.print("CLOSE,ERR");
@@ -347,6 +380,7 @@ void stop(const String&) {
         roofState = STOPPED;
         phase = IDLE;
     }
+    logger("CMD=STOP");
     serial.print("STOP,OK");
 }
 
