@@ -194,7 +194,7 @@ void currentMeasurementTick() {
 
 void timerTick() {
     unsigned long t = millis();
-    if (t - moveStartTime > MAX_MOVE_DURATION) {
+    if ((roofState == OPENING || roofState == CLOSING) && (t - moveStartTime > MAX_MOVE_DURATION)) {
         motorShield.setM1Speed(0);
         motorShield.setM2Speed(0);
         roofState = ERROR;
