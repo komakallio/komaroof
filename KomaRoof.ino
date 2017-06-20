@@ -57,7 +57,8 @@ static Scheduler taskScheduler;
 static RoofState roofState = STOPPED;
 static Phase phase = IDLE;
 static int roofSpeed = FULL_SPEED;
-static int countSincePhase;
+static int targetRoofSpeed = 0;
+static int tickCount = 0;
 static int direction;
 static float temperature = DEVICE_DISCONNECTED_C;
 static bool temperatureRequested = false;
@@ -197,6 +198,7 @@ void timerTick() {
     if ((roofState == OPENING || roofState == CLOSING) && (t - moveStartTime > MAX_MOVE_DURATION)) {
         motorShield.setM1Speed(0);
         motorShield.setM2Speed(0);
+        roofSpeed = targetRoofSpeed = 0;
         roofState = ERROR;
         phase = IDLE;
         logger("ERROR=DURATION");
@@ -205,17 +207,19 @@ void timerTick() {
 
 void motorTick() {
     // called @ 10hz rate
-    countSincePhase++;
+    tickCount++;
 
     powerConsumptionLog.appendCurrentMeasurement();
-    if (countSincePhase % 10 == 0) {
+    if (tickCount == 10) {
         status("");
         powerConsumptionLog.report(serial);
+        tickCount = 0;
     }
 
     unsigned int currentThreshold = (phase == CLOSE_TIGHTLY ? MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS : MOTOR_CURRENT_LIMIT_MILLIAMPS);
     if (powerConsumptionLog.isOverload(currentThreshold)) {
         motorShield.setM1Speed(0);
+        roofSpeed = targetRoofSpeed = 0;
         if (roofState == CLOSING && phase == CLOSE_TIGHTLY) {
             roofState = CLOSED;
             phase = IDLE;
@@ -230,6 +234,7 @@ void motorTick() {
 
     if (motorShield.getM1Fault()) {
         motorShield.setM1Speed(0);
+        roofSpeed = targetRoofSpeed = 0;
         roofState = ERROR;
         phase = IDLE;
         logger("ERROR=MOTOR1FAULT");
@@ -238,6 +243,7 @@ void motorTick() {
     if (emergencyStopPressed) {
         motorShield.setM1Speed(0);
         motorShield.setM2Speed(0);
+        roofSpeed = targetRoofSpeed = 0;
         if (phase != IDLE) {
             logger("CMD=EMERGENCYSTOP");
         }
@@ -250,7 +256,7 @@ void motorTick() {
         if ((phase == RAMP_UP || phase == MOVE_UNTIL_NEAR) && roofState == OPENING) {
             logger("LIMIT=SWITCH_OPENING");
             phase = RAMP_DOWN;
-            countSincePhase = 0;
+            targetRoofSpeed = 0;
         }
         limitSwitchOpenActive = false;
     }
@@ -259,7 +265,7 @@ void motorTick() {
         if ((phase == RAMP_UP || phase == MOVE_UNTIL_NEAR) && roofState == OPENING) {
             logger("LIMIT=ENCODER_OPENING");
             phase = RAMP_DOWN;
-            countSincePhase = 0;
+            targetRoofSpeed = 0;
         }
     }
 
@@ -267,7 +273,7 @@ void motorTick() {
         if ((phase == RAMP_UP || phase == MOVE_UNTIL_NEAR) && roofState == CLOSING) {
             logger("LIMIT=SWITCH_CLOSING");
             phase = RAMP_DOWN;
-            countSincePhase = 0;
+            targetRoofSpeed = CLOSING_SPEED;
         }
         limitSwitchCloseActive = false;
     }
@@ -275,27 +281,28 @@ void motorTick() {
     if (encoderPosition <= ENCODER_MIN_POSITION) {
         if ((phase == RAMP_UP || phase == MOVE_UNTIL_NEAR) && roofState == CLOSING) {
             phase = RAMP_DOWN;
-            countSincePhase = 0;
+            targetRoofSpeed = CLOSING_SPEED;
+        }
+    }
+
+    if (targetRoofSpeed != roofSpeed) {
+        roofSpeed += RAMP_DELTA * (targetRoofSpeed > roofSpeed ? 1 : -1);
+        if (abs(roofSpeed-targetRoofSpeed) <= (RAMP_DELTA/2)) {
+            roofSpeed = targetRoofSpeed;
         }
     }
 
     switch (phase) {
         case RAMP_UP: {
-            int power = roofSpeed * countSincePhase / RAMP_LENGTH;
-            if (power > roofSpeed)
-                power = roofSpeed;
-            motorShield.setM1Speed(power * direction);
-            if (power == roofSpeed)
+            motorShield.setM1Speed(roofSpeed * direction);
+            if (roofSpeed == targetRoofSpeed) {
                 phase = MOVE_UNTIL_NEAR;
+            }
             break;
         }
         case RAMP_DOWN: {
-            int power = roofSpeed - roofSpeed * countSincePhase / RAMP_LENGTH;
-            int minimumPower = (roofState == CLOSING ? CLOSING_SPEED : 0);
-            if (power < minimumPower)
-                power = minimumPower;
-            motorShield.setM1Speed(power * direction);
-            if (power == minimumPower) {
+            motorShield.setM1Speed(roofSpeed * direction);
+            if (roofSpeed == targetRoofSpeed) {
                 phase = IDLE;
                 if (roofState == STOPPING)
                 {
@@ -352,7 +359,7 @@ void open(const String&) {
     if (roofState == CLOSED || roofState == STOPPED) {
         roofState = OPENING;
         phase = RAMP_UP;
-        countSincePhase = 0;
+        targetRoofSpeed = FULL_SPEED;
         direction = MOTOR_POLARITY;
         moveStartTime = millis();
         logger("CMD=OPEN", moveStartTime);
@@ -366,7 +373,7 @@ void close(const String&) {
     if (roofState == OPEN || roofState == STOPPED) {
         roofState = CLOSING;
         phase = RAMP_UP;
-        countSincePhase = 0;
+        targetRoofSpeed = FULL_SPEED;
         direction = -MOTOR_POLARITY;
         moveStartTime = millis();
         logger("CMD=CLOSE", moveStartTime);
@@ -380,8 +387,7 @@ void stop(const String&) {
     if (phase != IDLE) {
         roofState = STOPPING;
         phase = RAMP_DOWN;
-        // start mid-ramp if we were not running at full speed
-        countSincePhase = RAMP_LENGTH - RAMP_LENGTH * motorShield.getM1Speed() / roofSpeed;
+        targetRoofSpeed = 0;
     }
     if (roofState == ERROR) {
         roofState = STOPPED;
@@ -420,6 +426,6 @@ void status(const String&) {
 }
 
 void setspeed(const String& speedAsString) {
-    roofSpeed = atoi(speedAsString.c_str());
+    targetRoofSpeed = atoi(speedAsString.c_str());
     serial.print("SETSPEED,OK");
 }
