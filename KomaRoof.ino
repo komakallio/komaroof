@@ -143,7 +143,7 @@ void logger(String msg, unsigned long timeMillis=0) {
     logMessage += ",";
     logMessage += msg;
 
-    Serial.print(logMessage);
+    serial.print(logMessage);
 }
 
 void loop() {
