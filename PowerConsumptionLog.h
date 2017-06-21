@@ -41,7 +41,7 @@ private:
     int m_windowPos;
     unsigned int m_overloadThreshold;
     unsigned int m_data[16];
-    int m_pos;
+    unsigned int m_pos;
 };
 
 #endif

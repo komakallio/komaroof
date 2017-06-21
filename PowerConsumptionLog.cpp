@@ -45,7 +45,7 @@ void PowerConsumptionLog::appendCurrentMeasurement() {
 
 bool PowerConsumptionLog::isOverload(unsigned int threshold) const {
     for (int i = 1; i <= 3; i++) {
-        if (m_data[(m_pos-i) % 0xF] < threshold) {
+        if (m_data[(m_pos-i) & 0xF] < threshold) {
             return false;
         }
     }
@@ -55,7 +55,7 @@ bool PowerConsumptionLog::isOverload(unsigned int threshold) const {
 void PowerConsumptionLog::report(NMEASerial& serial) {
     String message = "POWER,";
     for (int i = 1; i <= 10; i++) {
-        message += String(m_data[(m_pos-i) % 0xF]) + ",";
+        message += String(m_data[(m_pos-i) & 0xF]) + ",";
     }
     serial.print(message.substring(0, message.length()-1));
 }
