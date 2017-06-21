@@ -155,7 +155,7 @@ void serialEvent() {
 }
 
 void emergencyStopISR() {
-    emergencyStopPressed = (digitalRead(PIN_BUTTON_EMERGENCYSTOP) == LOW);
+    emergencyStopPressed = (digitalRead(PIN_BUTTON_EMERGENCYSTOP) == HIGH);
 }
 
 void limitSwitchOpenISR() {
