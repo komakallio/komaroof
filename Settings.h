@@ -44,6 +44,8 @@
 #define CLOSING_SPEED 100
 #define ENCODER_MAX_POSITION 715  // stop opening at this encoder position
 #define ENCODER_MIN_POSITION 15  // start closing tightly at this encoder position
+#define ENCODER_RESET_CLOSED 0
+#define ENCODER_RESET_OPEN 650
 #define MAX_MOVE_DURATION 120000 // two minutes
 #define RAMP_DELTA 10 // amount to change roof speed per motor tick
 

@@ -93,6 +93,13 @@ void setup() {
     pinMode(PIN_ENCODER_GATE_1, INPUT);
     pinMode(PIN_ENCODER_GATE_2, INPUT);
 
+    if (digitalRead(PIN_BUTTON_EMERGENCYSTOP) == LOW && digitalRead(PIN_BUTTON_CLOSE) == LOW) {
+        encoderPosition = ENCODER_RESET_CLOSED;
+    }
+    if (digitalRead(PIN_BUTTON_EMERGENCYSTOP) == LOW && digitalRead(PIN_BUTTON_OPEN) == LOW) {
+        encoderPosition = ENCODER_RESET_OPEN;
+    }
+
     attachInterrupt(digitalPinToInterrupt(PIN_BUTTON_EMERGENCYSTOP), emergencyStopISR, CHANGE);
     attachInterrupt(digitalPinToInterrupt(PIN_LIMITSWITCH_CLOSE), limitSwitchCloseISR, CHANGE);
     attachInterrupt(digitalPinToInterrupt(PIN_LIMITSWITCH_OPEN), limitSwitchOpenISR, CHANGE);
