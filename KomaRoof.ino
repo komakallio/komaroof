@@ -128,6 +128,7 @@ void setup() {
     buttonTask.enable();
     currentMeasurementTask.enable();
     voltageTask.enable();
+    timerTask.enable();
     test("");
 }
 
