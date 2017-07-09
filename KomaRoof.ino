@@ -68,6 +68,7 @@ static volatile bool limitSwitchOpenActive = false;
 static volatile bool limitSwitchCloseActive = false;
 static volatile int encoderState = 0;
 static volatile int encoderPosition = 0;
+static volatile bool emergencyStopInterrupt = false;
 static unsigned long moveStartTime = 0;
 
 static void emergencyStopISR();
@@ -157,16 +158,7 @@ void serialEvent() {
 
 void emergencyStopISR() {
     emergencyStopPressed = (digitalRead(PIN_BUTTON_EMERGENCYSTOP) == HIGH);
-
-    if (emergencyStopPressed) {
-        if (digitalRead(PIN_BUTTON_CLOSE) == LOW) {
-            encoderPosition = ENCODER_RESET_CLOSED;
-            roofState = CLOSED;
-        } else if (digitalRead(PIN_BUTTON_OPEN) == LOW) {
-            encoderPosition = ENCODER_RESET_OPEN;
-            roofState = OPEN;
-        }
-    }
+    emergencyStopInterrupt = true;
 }
 
 void limitSwitchOpenISR() {
@@ -225,6 +217,17 @@ void motorTick() {
         status("");
         powerConsumptionLog.report(serial);
         tickCount = 0;
+    }
+
+    if (emergencyStopInterrupt && emergencyStopPressed) {
+        if (digitalRead(PIN_BUTTON_CLOSE) == LOW) {
+            encoderPosition = ENCODER_RESET_CLOSED;
+            roofState = CLOSED;
+        } else if (digitalRead(PIN_BUTTON_OPEN) == LOW) {
+            encoderPosition = ENCODER_RESET_OPEN;
+            roofState = OPEN;
+        }
+        emergencyStopInterrupt = false;
     }
 
     unsigned int currentThreshold = (phase == CLOSE_TIGHTLY ? MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS : MOTOR_CURRENT_LIMIT_MILLIAMPS);
