@@ -254,6 +254,7 @@ void motorTick() {
         roofSpeed = targetRoofSpeed = 0;
         if (roofState == CLOSING && phase == CLOSE_TIGHTLY) {
             phase = LOCKING;
+            encoderPosition = 0;
             lockStartTime = millis();
             lockCurrentDetected = false;
         } else if (roofState != CLOSED && roofState != OPEN) {
@@ -378,7 +379,6 @@ void motorTick() {
                 motorShield.setM2Speed(0);
                 roofState = CLOSED;
                 phase = IDLE;
-                encoderPosition = 0;
                 logger(String("STATE=CLOSED,DURATION=") + (millis()-moveStartTime));
                 settings.save(roofState, encoderPosition);
                 if (!lockCurrentDetected) {
