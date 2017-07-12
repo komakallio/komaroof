@@ -38,7 +38,9 @@ enum Phase {
     RAMP_UP,
     MOVE_UNTIL_NEAR,
     RAMP_DOWN,
-    CLOSE_TIGHTLY
+    CLOSE_TIGHTLY,
+    LOCKING,
+    UNLOCKING
 };
 
 #endif

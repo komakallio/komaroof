@@ -47,6 +47,9 @@
 #define ENCODER_RESET_CLOSED 0
 #define ENCODER_RESET_OPEN 650
 #define MAX_MOVE_DURATION 150000 // 2.5 minutes
+#define MAX_LOCK_MOVE_DURATION 7000 // 7 seconds
 #define RAMP_DELTA 10 // amount to change roof speed per motor tick
+#define LOCK_CURRENT_DETECTION_MILLIAMPS 100
+#define LOCK_CURRENT_LIMIT_MILLIAMPS 500
 
 #endif

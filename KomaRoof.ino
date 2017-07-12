@@ -46,7 +46,8 @@ static DallasTemperature dallasTemperature(&oneWire);
 static MessageHandler handler;
 static NMEASerial serial(&handler);
 static DualVNH5019MotorShield motorShield;
-static PowerConsumptionLog powerConsumptionLog;
+static PowerConsumptionLog roofPowerConsumptionLog;
+static PowerConsumptionLog lockPowerConsumptionLog;
 static Task motorTask(100, TASK_FOREVER, &motorTick);
 static Task temperatureTask(1000, TASK_FOREVER, &temperatureTick);
 static Task voltageTask(1000, TASK_FOREVER, &voltageTick);
@@ -70,6 +71,8 @@ static volatile int encoderState = 0;
 static volatile int encoderPosition = 0;
 static volatile bool emergencyStopInterrupt = false;
 static unsigned long moveStartTime = 0;
+static unsigned long lockStartTime = 0;
+static bool lockCurrentDetected = false;
 
 static void emergencyStopISR();
 static void limitSwitchCloseISR();
@@ -79,6 +82,8 @@ static void encoderGate2ISR();
 static void stop(const String&);
 static void open(const String&);
 static void close(const String&);
+static void lock(const String&);
+static void unlock(const String&);
 static void setspeed(const String&);
 static void status(const String&);
 static void test(const String&);
@@ -106,6 +111,8 @@ void setup() {
     handler.registerCommand("OPEN", open);
     handler.registerCommand("CLOSE", close);
     handler.registerCommand("STOP", stop);
+    handler.registerCommand("LOCK", lock);
+    handler.registerCommand("UNLOCK", unlock);
     handler.registerCommand("SETSPEED", setspeed);
 
     taskScheduler.init();
@@ -193,7 +200,8 @@ void encoderGate2ISR() {
 }
 
 void currentMeasurementTick() {
-    powerConsumptionLog.measure(motorShield.getM1CurrentMilliamps());
+    roofPowerConsumptionLog.measure(motorShield.getM1CurrentMilliamps());
+    lockPowerConsumptionLog.measure(motorShield.getM2CurrentMilliamps());
 }
 
 void timerTick() {
@@ -212,10 +220,11 @@ void motorTick() {
     // called @ 10hz rate
     tickCount++;
 
-    powerConsumptionLog.appendCurrentMeasurement();
+    roofPowerConsumptionLog.appendCurrentMeasurement();
+    lockPowerConsumptionLog.appendCurrentMeasurement();
     if (tickCount == 10) {
         status("");
-        powerConsumptionLog.report(serial);
+        roofPowerConsumptionLog.report(serial);
         tickCount = 0;
     }
 
@@ -231,27 +240,37 @@ void motorTick() {
     }
 
     unsigned int currentThreshold = (phase == CLOSE_TIGHTLY ? MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS : MOTOR_CURRENT_LIMIT_MILLIAMPS);
-    if (powerConsumptionLog.isOverload(currentThreshold)) {
+    if (roofPowerConsumptionLog.isOverload(currentThreshold)) {
         motorShield.setM1Speed(0);
         roofSpeed = targetRoofSpeed = 0;
         if (roofState == CLOSING && phase == CLOSE_TIGHTLY) {
-            roofState = CLOSED;
-            phase = IDLE;
-            encoderPosition = 0;
-            logger(String("STATE=CLOSED,DURATION=") + (millis()-moveStartTime));
+            phase = LOCKING;
+            lockStartTime = millis();
+            lockCurrentDetected = false;
         } else if (roofState != CLOSED && roofState != OPEN) {
             roofState = ERROR;
             phase = IDLE;
             logger("ERROR=OVERCURRENT");
         }
     }
+    if (lockPowerConsumptionLog.isOverload(LOCK_CURRENT_DETECTION_MILLIAMPS)) {
+        lockCurrentDetected = true;
+    }
+    if (lockPowerConsumptionLog.isOverload(LOCK_CURRENT_LIMIT_MILLIAMPS)) {
+        motorShield.setM2Speed(0);
+        roofState = ERROR;
+        phase = IDLE;
+        logger("ERROR=LOCKOVERCURRENT");
+    }
 
     if (motorShield.getM1Fault()) {
         motorShield.setM1Speed(0);
         roofSpeed = targetRoofSpeed = 0;
+        if (roofState != ERROR) {
+            logger("ERROR=MOTOR1FAULT");
+        }
         roofState = ERROR;
         phase = IDLE;
-        logger("ERROR=MOTOR1FAULT");
     }
 
     if (emergencyStopPressed) {
@@ -325,7 +344,7 @@ void motorTick() {
                 }
                 else if (roofState == OPENING)
                 {
-                    logger(String("STATE=OPENED,DURATION=") + (millis()-moveStartTime));
+                    logger(String("STATE=OPEN,DURATION=") + (millis()-moveStartTime));
                     roofState = OPEN;
                 }
                 else if (roofState == CLOSING)
@@ -339,6 +358,35 @@ void motorTick() {
         case CLOSE_TIGHTLY:
             // just coast ahead, until we trigger current limit when the roof hits the wall
             break;
+        case LOCKING: {
+            if (millis() - lockStartTime > MAX_LOCK_MOVE_DURATION) {
+                motorShield.setM2Speed(0);
+                roofState = CLOSED;
+                phase = IDLE;
+                encoderPosition = 0;
+                logger(String("STATE=CLOSED,DURATION=") + (millis()-moveStartTime));
+                if (!lockCurrentDetected) {
+                    logger("WARN=NOLOCKCURRENT");
+                }
+            } else {
+                // 800ms ramp
+                motorShield.setM2Speed(min(400, (millis()-lockStartTime)/2));
+            }
+            break;
+        }
+        case UNLOCKING: {
+            if (millis() - lockStartTime > MAX_LOCK_MOVE_DURATION) {
+                motorShield.setM2Speed(0);
+                phase = RAMP_UP;
+                if (!lockCurrentDetected) {
+                    logger("WARN=NOLOCKCURRENT");
+                }
+            } else {
+                // 800ms ramp
+                motorShield.setM2Speed(max(-400, -(millis()-lockStartTime)/2));
+            }
+            break;
+        }
     }
 }
 
@@ -371,11 +419,12 @@ void test(const String&) {
 
 void open(const String&) {
     if (roofState == CLOSED || roofState == STOPPED) {
+        lockCurrentDetected = false;
         roofState = OPENING;
-        phase = RAMP_UP;
+        phase = UNLOCKING;
         targetRoofSpeed = FULL_SPEED;
         direction = MOTOR_POLARITY;
-        moveStartTime = millis();
+        moveStartTime = lockStartTime = millis();
         logger("CMD=OPEN", moveStartTime);
         serial.print("OPEN,OK");
     } else {
@@ -383,8 +432,31 @@ void open(const String&) {
     }
 }
 
+void unlock(const String&) {
+    serial.print("UNLOCK,OK");
+    moveStartTime = millis();
+    logger("CMD=UNLOCK", moveStartTime);
+    while (millis() - moveStartTime < MAX_LOCK_MOVE_DURATION || motorShield.getM2CurrentMilliamps() > LOCK_CURRENT_LIMIT_MILLIAMPS) {
+        motorShield.setM2Speed(max(-400, -(millis()-moveStartTime)/2));
+        delay(50);
+    }
+    motorShield.setM2Speed(0);
+}
+
+void lock(const String&) {
+    serial.print("LOCK,OK");
+    moveStartTime = millis();
+    logger("CMD=LOCK", moveStartTime);
+    while (millis() - moveStartTime < MAX_LOCK_MOVE_DURATION || motorShield.getM2CurrentMilliamps() > LOCK_CURRENT_LIMIT_MILLIAMPS) {
+        motorShield.setM2Speed(min(400, (millis()-moveStartTime)/2));
+        delay(50);
+    }
+    motorShield.setM2Speed(0);
+}
+
 void close(const String&) {
     if (roofState == OPEN || roofState == STOPPED) {
+        lockCurrentDetected = false;
         roofState = CLOSING;
         phase = RAMP_UP;
         targetRoofSpeed = FULL_SPEED;
@@ -413,7 +485,7 @@ void stop(const String&) {
 
 void status(const String&) {
     static const char* roofStateNames[] = { "STOPPED", "OPEN", "CLOSED", "OPENING", "CLOSING", "STOPPING", "ERROR" };
-    static const char* phaseNames[] = { "IDLE", "RAMP_UP", "MOVE_UNTIL_NEAR", "RAMP_DOWN", "CLOSE_TIGHTLY" };
+    static const char* phaseNames[] = { "IDLE", "RAMP_UP", "MOVE_UNTIL_NEAR", "RAMP_DOWN", "CLOSE_TIGHTLY", "LOCKING", "UNLOCKING" };
 
     String message = "STATUS,";
     message += "ROOF=";
