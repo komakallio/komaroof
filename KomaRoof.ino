@@ -25,12 +25,13 @@
 #include <OneWire.h>
 #include <TaskScheduler.h>
 
+#include "Config.h"
 #include "DualVNH5019MotorShield.h"
 #include "NMEASerial.h"
 #include "MessageHandler.h"
 #include "PowerConsumptionLog.h"
 #include "Roof.h"
-#include "Config.h"
+#include "Settings.h"
 #include "Version.h"
 
 void currentMeasurementTick();
@@ -57,6 +58,7 @@ static Task timerTask(100, TASK_FOREVER, &timerTick);
 static Scheduler taskScheduler;
 static RoofState roofState = STOPPED;
 static Phase phase = IDLE;
+static Settings settings;
 static int roofSpeed = FULL_SPEED;
 static int targetRoofSpeed = 0;
 static int tickCount = 0;
@@ -121,6 +123,10 @@ void setup() {
     taskScheduler.addTask(currentMeasurementTask);
     taskScheduler.addTask(voltageTask);
     taskScheduler.addTask(timerTask);
+
+    settings.load();
+    roofState = settings.roofState;
+    encoderPosition = settings.encoderPosition;
 
     motorShield.init();
 
@@ -212,6 +218,7 @@ void timerTick() {
         roofSpeed = targetRoofSpeed = 0;
         roofState = ERROR;
         phase = IDLE;
+        settings.save(roofState, encoderPosition);
         logger("ERROR=DURATION");
     }
 }
@@ -232,9 +239,11 @@ void motorTick() {
         if (digitalRead(PIN_BUTTON_CLOSE) == LOW) {
             encoderPosition = ENCODER_RESET_CLOSED;
             roofState = CLOSED;
+            settings.save(roofState, encoderPosition);
         } else if (digitalRead(PIN_BUTTON_OPEN) == LOW) {
             encoderPosition = ENCODER_RESET_OPEN;
             roofState = OPEN;
+            settings.save(roofState, encoderPosition);
         }
         emergencyStopInterrupt = false;
     }
@@ -251,6 +260,7 @@ void motorTick() {
             roofState = ERROR;
             phase = IDLE;
             logger("ERROR=OVERCURRENT");
+            settings.save(roofState, encoderPosition);
         }
     }
     if (lockPowerConsumptionLog.isOverload(LOCK_CURRENT_DETECTION_MILLIAMPS)) {
@@ -261,15 +271,17 @@ void motorTick() {
         roofState = ERROR;
         phase = IDLE;
         logger("ERROR=LOCKOVERCURRENT");
+        settings.save(roofState, encoderPosition);
     }
 
     if (motorShield.getM1Fault()) {
         motorShield.setM1Speed(0);
         roofSpeed = targetRoofSpeed = 0;
         if (roofState != ERROR) {
+            roofState = ERROR;
             logger("ERROR=MOTOR1FAULT");
+            settings.save(roofState, encoderPosition);
         }
-        roofState = ERROR;
         phase = IDLE;
     }
 
@@ -277,11 +289,12 @@ void motorTick() {
         motorShield.setM1Speed(0);
         motorShield.setM2Speed(0);
         roofSpeed = targetRoofSpeed = 0;
+        roofState = STOPPED;
         if (phase != IDLE) {
             logger("CMD=EMERGENCYSTOP");
+            settings.save(roofState, encoderPosition);
         }
         phase = IDLE;
-        roofState = STOPPED;
         return;
     }
 
@@ -341,11 +354,13 @@ void motorTick() {
                 {
                     logger("STATE=STOPPED");
                     roofState = STOPPED;
+                    settings.save(roofState, encoderPosition);
                 }
                 else if (roofState == OPENING)
                 {
                     logger(String("STATE=OPEN,DURATION=") + (millis()-moveStartTime));
                     roofState = OPEN;
+                    settings.save(roofState, encoderPosition);
                 }
                 else if (roofState == CLOSING)
                 {
@@ -365,6 +380,7 @@ void motorTick() {
                 phase = IDLE;
                 encoderPosition = 0;
                 logger(String("STATE=CLOSED,DURATION=") + (millis()-moveStartTime));
+                settings.save(roofState, encoderPosition);
                 if (!lockCurrentDetected) {
                     logger("WARN=NOLOCKCURRENT");
                 }
@@ -478,6 +494,7 @@ void stop(const String&) {
     if (roofState == ERROR) {
         roofState = STOPPED;
         phase = IDLE;
+        settings.save(roofState, encoderPosition);
     }
     logger("CMD=STOP");
     serial.print("STOP,OK");
