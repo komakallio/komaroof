@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Jari Saukkonen
+ * Copyright (c) 2017 Jari Saukkonen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -21,8 +21,8 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#ifndef CONFIG_H
+#define CONFIG_H
 
 #define BOARD_NAME "KOMAROOF"
 #define PIN_UNUSED 46

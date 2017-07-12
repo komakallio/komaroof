@@ -30,7 +30,7 @@
 #include "MessageHandler.h"
 #include "PowerConsumptionLog.h"
 #include "Roof.h"
-#include "Settings.h"
+#include "Config.h"
 #include "Version.h"
 
 void currentMeasurementTick();
