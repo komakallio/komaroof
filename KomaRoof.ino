@@ -304,6 +304,9 @@ void motorTick() {
             logger("LIMIT=SWITCH_OPENING");
             phase = RAMP_DOWN;
             targetRoofSpeed = 0;
+            if (encoderPosition == 0) {
+                logger("ERROR=ENCODERMALFUNCTION");
+            }
         }
         limitSwitchOpenActive = false;
     }
