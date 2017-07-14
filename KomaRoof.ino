@@ -517,18 +517,12 @@ void status(const String&) {
     message += ",ENCODER=";
     message += encoderPosition;
     message += ",BATTERYVOLTAGE=";
-    message += (int)(batteryVoltage);
-    message += ".";
-    message += (int)(batteryVoltage*10) % 10;
-    message += (int)(roundf(batteryVoltage*100)) % 10;
+    message += (batteryVoltage;
     message += ",SPEED=";
     message += roofSpeed;
     if (temperature != (float)DEVICE_DISCONNECTED_C) {
         message += ",TEMP1=";
-        message += (int)(temperature);
-        message += ".";
-        message += (int)(temperature*10) % 10;
-        message += (int)(roundf(temperature*100)) % 10;
+        message += temperature;
     }
     serial.print(message);
 }
