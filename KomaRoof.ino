@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Jari Saukkonen
+ * Copyright (c) 2017 Jari Saukkonen
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -59,7 +59,7 @@ static Scheduler taskScheduler;
 static RoofState roofState = STOPPED;
 static Phase phase = IDLE;
 static Settings settings;
-static int roofSpeed = FULL_SPEED;
+static int roofSpeed = 0;
 static int targetRoofSpeed = 0;
 static int tickCount = 0;
 static int direction;
@@ -397,12 +397,14 @@ void motorTick() {
             if (millis() - lockStartTime > MAX_LOCK_MOVE_DURATION) {
                 motorShield.setM2Speed(0);
                 phase = RAMP_UP;
+                roofSpeed = 0;
+                targetRoofSpeed = FULL_SPEED;
                 if (!lockCurrentDetected) {
                     logger("WARN=NOLOCKCURRENT");
                 }
             } else {
                 // 800ms ramp
-                motorShield.setM2Speed(max(-400, -(millis()-lockStartTime)/2));
+                motorShield.setM2Speed(-(long)min(400, (millis()-lockStartTime)/2));
             }
             break;
         }
@@ -441,7 +443,6 @@ void open(const String&) {
         lockCurrentDetected = false;
         roofState = OPENING;
         phase = UNLOCKING;
-        targetRoofSpeed = FULL_SPEED;
         direction = MOTOR_POLARITY;
         moveStartTime = lockStartTime = millis();
         logger("CMD=OPEN", moveStartTime);
@@ -455,8 +456,8 @@ void unlock(const String&) {
     serial.print("UNLOCK,OK");
     moveStartTime = millis();
     logger("CMD=UNLOCK", moveStartTime);
-    while (millis() - moveStartTime < MAX_LOCK_MOVE_DURATION || motorShield.getM2CurrentMilliamps() > LOCK_CURRENT_LIMIT_MILLIAMPS) {
-        motorShield.setM2Speed(max(-400, -(millis()-moveStartTime)/2));
+    while (millis() - moveStartTime < MAX_LOCK_MOVE_DURATION && motorShield.getM2CurrentMilliamps() < LOCK_CURRENT_LIMIT_MILLIAMPS*1.1) {
+        motorShield.setM2Speed(-(long)min(400, (millis()-moveStartTime)/2));
         delay(50);
     }
     motorShield.setM2Speed(0);
@@ -466,8 +467,8 @@ void lock(const String&) {
     serial.print("LOCK,OK");
     moveStartTime = millis();
     logger("CMD=LOCK", moveStartTime);
-    while (millis() - moveStartTime < MAX_LOCK_MOVE_DURATION || motorShield.getM2CurrentMilliamps() > LOCK_CURRENT_LIMIT_MILLIAMPS) {
-        motorShield.setM2Speed(min(400, (millis()-moveStartTime)/2));
+    while (millis() - moveStartTime < MAX_LOCK_MOVE_DURATION && motorShield.getM2CurrentMilliamps() < LOCK_CURRENT_LIMIT_MILLIAMPS*1.1) {
+        motorShield.setM2Speed(min(400, ((long)millis()-moveStartTime)/2));
         delay(50);
     }
     motorShield.setM2Speed(0);
@@ -479,6 +480,7 @@ void close(const String&) {
         roofState = CLOSING;
         phase = RAMP_UP;
         targetRoofSpeed = FULL_SPEED;
+        roofSpeed = 0;
         direction = -MOTOR_POLARITY;
         moveStartTime = millis();
         logger("CMD=CLOSE", moveStartTime);
@@ -531,7 +533,7 @@ void status(const String&) {
     serial.print(message);
 }
 
-void setspeed(const String& speedAsString) {
+static void setspeed(const String& speedAsString) {
     targetRoofSpeed = atoi(speedAsString.c_str());
     serial.print("SETSPEED,OK");
 }
