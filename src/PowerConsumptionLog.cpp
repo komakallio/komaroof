@@ -24,9 +24,9 @@
 #include "PowerConsumptionLog.h"
 
 PowerConsumptionLog::PowerConsumptionLog() :
-    m_pos(0),
     m_windowPos(0),
-    m_overloadThreshold(5000) {
+    m_overloadThreshold(5000),
+    m_pos(0) {
     memset(&m_data[0], 0, 16);
     memset(&m_window[0], 0, 16);
 }

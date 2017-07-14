@@ -24,7 +24,6 @@
 #include "MessageHandler.h"
 
 void MessageHandler::onMessage(String message) {
-    int pos = 0;
     String cmd;
     String params;
     if (message.indexOf(',') != -1) {

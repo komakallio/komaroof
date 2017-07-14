@@ -74,7 +74,7 @@ bool NMEASerial::checksumValid(const String& buffer, const char* checksumToTest)
 
 char NMEASerial::checksum(const String& buffer) {
     char sum = 0;
-    for (int i = 0; i < buffer.length(); i++)
+    for (unsigned int i = 0; i < buffer.length(); i++)
         sum ^= buffer[i];
     return sum;
 }

@@ -26,7 +26,7 @@
 
 void Settings::load() {
     uint8_t* arr = (uint8_t*)this;
-    for (int i = 0; i < sizeof(Settings); i++) {
+    for (unsigned int i = 0; i < sizeof(Settings); i++) {
         arr[i] = EEPROM.read(i);
     }
 
@@ -41,7 +41,7 @@ void Settings::load() {
 
 void Settings::save() {
     uint8_t* arr = (uint8_t*)this;
-    for (int i = 0; i < sizeof(Settings); i++) {
+    for (unsigned int i = 0; i < sizeof(Settings); i++) {
         if (EEPROM.read(i) != arr[i]) {
             EEPROM.write(i, arr[i]);
         }

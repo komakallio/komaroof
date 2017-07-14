@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 /*
  * Copyright (c) 2017 Jari Saukkonen
  *
@@ -76,19 +78,20 @@ static unsigned long moveStartTime = 0;
 static unsigned long lockStartTime = 0;
 static bool lockCurrentDetected = false;
 
-static void emergencyStopISR();
-static void limitSwitchCloseISR();
-static void limitSwitchOpenISR();
-static void encoderGate1ISR();
-static void encoderGate2ISR();
-static void stop(const String&);
-static void open(const String&);
-static void close(const String&);
-static void lock(const String&);
-static void unlock(const String&);
-static void setspeed(const String&);
-static void status(const String&);
-static void test(const String&);
+void emergencyStopISR();
+void limitSwitchCloseISR();
+void limitSwitchOpenISR();
+void encoderGate1ISR();
+void encoderGate2ISR();
+void stop(const String&);
+void open(const String&);
+void close(const String&);
+void lock(const String&);
+void unlock(const String&);
+void setspeed(const String&);
+void status(const String&);
+void test(const String&);
+void encoderstatus();
 
 void setup() {
 
@@ -233,6 +236,10 @@ void motorTick() {
         status("");
         roofPowerConsumptionLog.report(serial);
         tickCount = 0;
+    } else {
+        if (roofState == OPENING || roofState == CLOSING) {
+            encoderstatus();
+        }
     }
 
     if (emergencyStopInterrupt && emergencyStopPressed) {
@@ -408,6 +415,10 @@ void motorTick() {
             }
             break;
         }
+        case IDLE:
+        case MOVE_UNTIL_NEAR:
+            // no need to do anything
+            break;
     }
 }
 
@@ -505,6 +516,13 @@ void stop(const String&) {
     serial.print("STOP,OK");
 }
 
+void encoderstatus() {
+    String message = "STATUS,";
+    message += ",ENCODER=";
+    message += encoderPosition;
+    serial.print(message);
+}
+
 void status(const String&) {
     static const char* roofStateNames[] = { "STOPPED", "OPEN", "CLOSED", "OPENING", "CLOSING", "STOPPING", "ERROR" };
     static const char* phaseNames[] = { "IDLE", "RAMP_UP", "MOVE_UNTIL_NEAR", "RAMP_DOWN", "CLOSE_TIGHTLY", "LOCKING", "UNLOCKING" };
@@ -517,7 +535,7 @@ void status(const String&) {
     message += ",ENCODER=";
     message += encoderPosition;
     message += ",BATTERYVOLTAGE=";
-    message += (batteryVoltage;
+    message += batteryVoltage;
     message += ",SPEED=";
     message += roofSpeed;
     if (temperature != (float)DEVICE_DISCONNECTED_C) {
@@ -527,7 +545,7 @@ void status(const String&) {
     serial.print(message);
 }
 
-static void setspeed(const String& speedAsString) {
+void setspeed(const String& speedAsString) {
     targetRoofSpeed = atoi(speedAsString.c_str());
     serial.print("SETSPEED,OK");
 }
