@@ -518,8 +518,7 @@ void stop(const String&) {
 }
 
 void encoderstatus() {
-    String message = "STATUS,";
-    message += ",ENCODER=";
+    String message = "ENCODER,";
     message += encoderPosition;
     serial.print(message);
 }
