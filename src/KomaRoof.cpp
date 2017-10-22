@@ -234,7 +234,8 @@ void motorTick() {
     lockPowerConsumptionLog.appendCurrentMeasurement();
     if (tickCount == 10) {
         status("");
-        roofPowerConsumptionLog.report(serial);
+        roofPowerConsumptionLog.report(serial, "POWER");
+        lockPowerConsumptionLog.report(serial, "LOCKPOWER");
         tickCount = 0;
     } else {
         if (roofState == OPENING || roofState == CLOSING) {

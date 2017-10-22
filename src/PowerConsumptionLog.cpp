@@ -52,8 +52,8 @@ bool PowerConsumptionLog::isOverload(unsigned int threshold) const {
     return true;
 }
 
-void PowerConsumptionLog::report(NMEASerial& serial) {
-    String message = "POWER,";
+void PowerConsumptionLog::report(NMEASerial& serial, String command) {
+    String message = command + ",";
     for (int i = 1; i <= 10; i++) {
         message += String(m_data[(m_pos-i) & 0xF]) + ",";
     }

@@ -32,7 +32,7 @@ public:
 
     void measure(unsigned int milliAmps);
     void appendCurrentMeasurement();
-    void report(NMEASerial& serial);
+    void report(NMEASerial& serial, String command);
     void setOverloadThreshold(unsigned int milliAmps);
     bool isOverload(unsigned int threshold) const;
 
