@@ -239,7 +239,8 @@ void motorTick() {
         tickCount = 0;
     } else {
         if (roofState == OPENING || roofState == CLOSING) {
-            encoderstatus();
+            // Extra encoderstatus calls disabled for now to improve stability
+            // encoderstatus();
         }
     }
 
