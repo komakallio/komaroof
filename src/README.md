@@ -15,20 +15,20 @@ The configurable parameters can be modified in `Settings.h`.
 `PIN_BUTTON_EMERGENCYSTOP` - Pin number for the emergency stop button. This must be an interrupt-capable pin.  
 `PIN_BUTTON_OPEN` - Pin number for the 'Open' button  
 `PIN_BUTTON_CLOSE` - Pin number for the 'Close' button  
-`PIN_LIMITSWITCH_OPEN` - Pin number for the 'Open' limit switch
-`PIN_LIMITSWITCH_CLOSE` - Pin number for the 'Close' limit switch
-`PIN_ENCODER_GATE_1` - Pin number for the first encoder gate
-`PIN_ENCODER_GATE_2` - Pin number for the second encoder gate
-`PIN_BATTERY_VOLTAGE A2` - Pin number for connecting a 1-wire temperature sensor
-`MOTOR_CURRENT_LIMIT_MILLIAMPS 2500` - Current limit that will trigger an error condition
+`PIN_LIMITSWITCH_OPEN` - Pin number for the 'Open' limit switch  
+`PIN_LIMITSWITCH_CLOSE` - Pin number for the 'Close' limit switch  
+`PIN_ENCODER_GATE_1` - Pin number for the first encoder gate  
+`PIN_ENCODER_GATE_2` - Pin number for the second encoder gate  
+`PIN_BATTERY_VOLTAGE A2` - Pin number for connecting a 1-wire temperature sensor  
+`MOTOR_CURRENT_LIMIT_MILLIAMPS 2500` - Current limit that will trigger an error condition  
 `MOTOR_POLARITY` - Change 1 to -1 to invert the motor movement direction.  
-`FULL_SPEED` - Maximum motor speed from 0 to 400
-`CLOSING_SPEED` - Motor speed to use for final tightening of the roof
+`FULL_SPEED` - Maximum motor speed from 0 to 400  
+`CLOSING_SPEED` - Motor speed to use for final tightening of the roof  
 `RAMP_LENGTH` - The duration during which the motor ramps up to FULL_SPEED. In motor ticks (1/10th second).  
-`ENCODER_MAX_POSITION` - Encoder position where the roof will be stopped when opening
-`ENCODER_MIN_POSITION` - Encoder position where the roof will slow down when closing
-`MAX_MOVE_DURATION` - Maximum duration (milliseconds) for any movement until error is triggered
-`RAMP_DELTA` - Amount to change the motor speed per tick
+`ENCODER_MAX_POSITION` - Encoder position where the roof will be stopped when opening  
+`ENCODER_MIN_POSITION` - Encoder position where the roof will slow down when closing  
+`MAX_MOVE_DURATION` - Maximum duration (milliseconds) for any movement until error is triggered  
+`RAMP_DELTA` - Amount to change the motor speed per tick  
 
 ## Command set
 
