@@ -26,7 +26,7 @@
 #include <Arduino.h>
 #include "NMEASerial.h"
 
-#define MAX_COMMANDS 10
+#define MAX_COMMANDS 11
 
 class MessageHandler : public NMEASerial::ISerialHandler {
 public:

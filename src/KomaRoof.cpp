@@ -65,6 +65,7 @@ static int roofSpeed = 0;
 static int targetRoofSpeed = 0;
 static int tickCount = 0;
 static int direction;
+static int gotoPosition = 0;
 static float temperature = DEVICE_DISCONNECTED_C;
 static bool temperatureRequested = false;
 static float batteryVoltage = 0.0f;
@@ -95,6 +96,9 @@ void setroofmotorlimit(const String&);
 void setlockmotorlimit(const String&);
 void status(const String&);
 void test(const String&);
+void gotoEncoderPosition(const String&);
+void setMotorCurrentLimit(const String&);
+void setLockCurrentLimit(const String&);
 void encoderstatus();
 
 void setup() {
@@ -125,7 +129,9 @@ void setup() {
     handler.registerCommand("SETSPEED", setspeed);
     handler.registerCommand("LOCKLIMIT", setlockmotorlimit);
     handler.registerCommand("MOTORLIMIT", setroofmotorlimit);
-    
+    handler.registerCommand("GOTO", gotoEncoderPosition);
+    // Remember to update MAX_COMMANDS if you add new commands here
+
     taskScheduler.init();
     taskScheduler.addTask(motorTask);
     taskScheduler.addTask(buttonTask);
@@ -326,6 +332,13 @@ void motorTick() {
         limitSwitchOpenActive = false;
     }
 
+    if (gotoPosition > 0 && roofState == OPENING && encoderPosition >= gotoPosition) {
+        logger("LIMIT=GOTO");
+        phase = RAMP_DOWN;
+        roofState = STOPPING;
+        targetRoofSpeed = 0;
+    }
+
     if (encoderPosition >= ENCODER_MAX_POSITION) {
         if ((phase == RAMP_UP || phase == MOVE_UNTIL_NEAR) && roofState == OPENING) {
             logger("LIMIT=ENCODER_OPENING");
@@ -341,6 +354,13 @@ void motorTick() {
             targetRoofSpeed = CLOSING_SPEED;
         }
         limitSwitchCloseActive = false;
+    }
+
+    if (gotoPosition > 0 && roofState == CLOSING && encoderPosition <= gotoPosition) {
+        logger("LIMIT=GOTO");
+        phase = RAMP_DOWN;
+        roofState = STOPPING;
+        targetRoofSpeed = 0;
     }
 
     if (encoderPosition <= ENCODER_MIN_POSITION) {
@@ -369,6 +389,7 @@ void motorTick() {
             motorShield.setM1Speed(roofSpeed * direction);
             if (roofSpeed == targetRoofSpeed) {
                 phase = IDLE;
+                gotoPosition = 0;
                 if (roofState == STOPPING)
                 {
                     logger("STATE=STOPPED");
@@ -522,6 +543,25 @@ void stop(const String&) {
     }
     logger("CMD=STOP");
     serial.print("STOP,OK");
+}
+
+void gotoEncoderPosition(const String& params) {
+    if (roofState != CLOSED) {
+        gotoPosition = atoi(params.c_str());
+        if (gotoPosition >= encoderPosition) {
+            open("");
+        } else {
+            close("");
+        }
+    }
+}
+
+void setMotorCurrentLimit(const String& params) {
+    roofCurrentLimit = atoi(params.c_str());
+}
+
+void setLockCurrentLimit(const String& params) {
+    lockCurrentLimit = atoi(params.c_str());
 }
 
 void encoderstatus() {
