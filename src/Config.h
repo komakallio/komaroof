@@ -50,6 +50,6 @@
 #define MAX_LOCK_MOVE_DURATION 7000 // 7 seconds
 #define RAMP_DELTA 10 // amount to change roof speed per motor tick
 #define LOCK_CURRENT_DETECTION_MILLIAMPS 100
-#define LOCK_CURRENT_LIMIT_MILLIAMPS 1000
+#define LOCK_CURRENT_LIMIT_MILLIAMPS 1500
 
 #endif
