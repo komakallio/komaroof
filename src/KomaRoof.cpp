@@ -78,6 +78,7 @@ static volatile bool emergencyStopInterrupt = false;
 static unsigned long moveStartTime = 0;
 static unsigned long lockStartTime = 0;
 static unsigned long roofCurrentLimit = MOTOR_CURRENT_LIMIT_MILLIAMPS;
+static unsigned long roofClosingCurrentLimit = MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS;
 static unsigned long lockCurrentLimit = LOCK_CURRENT_LIMIT_MILLIAMPS;
 static bool lockCurrentDetected = false;
 
@@ -93,6 +94,7 @@ void lock(const String&);
 void unlock(const String&);
 void setspeed(const String&);
 void setroofmotorlimit(const String&);
+void setroofmotorcloselimit(const String&);
 void setlockmotorlimit(const String&);
 void status(const String&);
 void test(const String&);
@@ -129,6 +131,7 @@ void setup() {
     handler.registerCommand("SETSPEED", setspeed);
     handler.registerCommand("LOCKLIMIT", setlockmotorlimit);
     handler.registerCommand("MOTORLIMIT", setroofmotorlimit);
+    handler.registerCommand("MOTORCLOSELIMIT", setroofmotorcloselimit);
     handler.registerCommand("GOTO", gotoEncoderPosition);
     // Remember to update MAX_COMMANDS if you add new commands here
 
@@ -269,7 +272,7 @@ void motorTick() {
         emergencyStopInterrupt = false;
     }
 
-    unsigned int currentThreshold = (phase == CLOSE_TIGHTLY ? MOTOR_CLOSING_CURRENT_LIMIT_MILLIAMPS : roofCurrentLimit);
+    unsigned int currentThreshold = (phase == CLOSE_TIGHTLY ? roofClosingCurrentLimit : roofCurrentLimit);
     if (roofPowerConsumptionLog.isOverload(currentThreshold)) {
         motorShield.setM1Speed(0);
         roofSpeed = targetRoofSpeed = 0;
@@ -605,5 +608,10 @@ void setlockmotorlimit(const String& limitAsString) {
 void setroofmotorlimit(const String& limitAsString) {
     roofCurrentLimit = atoi(limitAsString.c_str());
     serial.print("ROOFLIMIT,OK");
+}
+
+void setroofmotorcloselimit(const String& limitAsString) {
+    roofClosingCurrentLimit = atoi(limitAsString.c_str());
+    serial.print("ROOFCLOSELIMIT,OK");
 }
 
